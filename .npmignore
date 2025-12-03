@@ -1,0 +1,11 @@
+# copied from .gitignore (which this overrides)
+/doc/
+
+# additional exclusions irrelevant for published packages
+/.eslintrc.json
+/.gitlab-ci.yml
+/RELEASE.md
+/test/
+
+# npm cache dir in CI
+/.npm/

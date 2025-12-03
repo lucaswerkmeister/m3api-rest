@@ -1,0 +1,32 @@
+{
+	"plugins": [
+		"chai-friendly"
+	],
+	"extends": [
+		"wikimedia/common",
+		"wikimedia/language/es2019",
+		"wikimedia/node",
+		"plugin:chai-friendly/recommended",
+		"plugin:compat/recommended"
+	],
+	"parserOptions": {
+		"sourceType": "module"
+	},
+	"rules": {
+		"comma-dangle": [ "error", "always-multiline" ],
+		"no-shadow": "off",
+		"prefer-const": [ "error", { "destructuring": "all" } ],
+		"n/no-unsupported-features/node-builtins": "off"
+	},
+	"overrides": [
+		{
+			"files": "*.json",
+			"rules": {
+				"comma-dangle": "off"
+			}
+		}
+	],
+	"ignorePatterns": [
+		"/doc/"
+	]
+}
