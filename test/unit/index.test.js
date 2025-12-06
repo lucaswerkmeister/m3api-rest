@@ -1,11 +1,15 @@
 /* eslint-env mocha */
 
+import { Session } from 'm3api/core.js';
 import {
+	getJson,
 	path,
 } from '../../index.js';
 import { expect, use } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
+import chaiString from 'chai-string';
 use( chaiAsPromised );
+use( chaiString );
 
 describe( 'path', () => {
 
@@ -40,6 +44,39 @@ describe( 'path', () => {
 		const uselang = 'en/gb'; // fake value
 		const actual = path`/growthexperiments/v0/quickstarttips/${ skin }/${ editor }/${ tasktypeid }/${ uselang }`;
 		expect( actual ).to.equal( '/growthexperiments/v0/quickstarttips/vector%2F2022/visual%2Feditor/copy%2Fedit/en%2Fgb' );
+	} );
+
+} );
+
+describe( 'getJson', () => {
+
+	it( 'makes a request with the right URL and headers and returns the body', async () => {
+		let called = false;
+		const session = new class TestSession extends Session {
+
+			async internalGet( url, params, headers ) {
+				expect( url ).to.equal( 'https://wiki.test/testw/rest.php/foo' );
+				expect( params ).to.eql( {} );
+				expect( headers ).to.have.all.keys( 'accept', 'user-agent' );
+				expect( headers.accept ).to.equal( 'application/json' );
+				expect( headers[ 'user-agent' ] ).to.startWith( 'test-user-agent m3api/' );
+				expect( called ).to.be.false;
+				called = true;
+				return {
+					status: 200,
+					headers: {},
+					body: { the: 'body' },
+				};
+			}
+
+		}( 'https://wiki.test/testw/api.php' );
+
+		const response = await getJson( session, '/foo', {
+			userAgent: 'test-user-agent',
+		} );
+
+		expect( called ).to.be.true;
+		expect( response ).to.eql( { the: 'body' } );
 	} );
 
 } );

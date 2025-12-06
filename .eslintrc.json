@@ -16,7 +16,9 @@
 		"comma-dangle": [ "error", "always-multiline" ],
 		"no-shadow": "off",
 		"prefer-const": [ "error", { "destructuring": "all" } ],
-		"n/no-unsupported-features/node-builtins": "off"
+		"jsdoc/no-undefined-types": [ "error", {
+			"definedTypes": [ "Options", "Session" ]
+		} ]
 	},
 	"overrides": [
 		{
