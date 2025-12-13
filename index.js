@@ -41,3 +41,36 @@ export async function getJson( session, path, options = {} ) {
 	const internalResponse = await session.internalGet( url, params, headers );
 	return internalResponse.body;
 }
+
+/**
+ * Make a POST request to a REST API endpoint and return the JSON-decoded body.
+ *
+ * @param {Session} session The m3api session to use for this request.
+ * @param {string} path The resourcee path, e.g. `/v1/page`.
+ * Does not include the domain, script path, or `rest.php` endpoint.
+ * Use the {@link path} tag function to build the path.
+ * @param {URLSearchParams} params The request body.
+ * Will be sent using the `application/x-www-form-urlencoded` content type.
+ * (Future versions of this library will support additional request body content types,
+ * but that requires changes to m3api first.)
+ * @param {Options} [options] Request options.
+ * @return {Object} The body of the API response, JSON-decoded.
+ */
+export async function postForJson( session, path, params, options = {} ) {
+	const restUrl = session.apiUrl.replace( /api\.php$/, 'rest.php' );
+	const url = restUrl + path;
+	const urlParams = {};
+	const bodyParams = {};
+	for ( const [ key, value ] of params ) {
+		if ( Object.prototype.hasOwnProperty.call( bodyParams, key ) ) {
+			throw new Error( `Duplicate param name not yet supported: ${ key }` );
+		}
+		bodyParams[ key ] = value;
+	}
+	const headers = {
+		// accept: 'application/json', // skip this for now due to T412610
+		'user-agent': session.getUserAgent( options ),
+	};
+	const internalResponse = await session.internalPost( url, urlParams, bodyParams, headers );
+	return internalResponse.body;
+}

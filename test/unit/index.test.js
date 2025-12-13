@@ -4,6 +4,7 @@ import { Session } from 'm3api/core.js';
 import {
 	getJson,
 	path,
+	postForJson,
 } from '../../index.js';
 import { expect, use } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
@@ -77,6 +78,55 @@ describe( 'getJson', () => {
 
 		expect( called ).to.be.true;
 		expect( response ).to.eql( { the: 'body' } );
+	} );
+
+} );
+
+describe( 'postForJson', () => {
+
+	it( 'makes a request with the right URL, headers and body and returns the body', async () => {
+		let called = false;
+		const session = new class TestSession extends Session {
+
+			async internalPost( url, urlParams, bodyParams, headers ) {
+				expect( url ).to.equal( 'https://wiki.test/testw/rest.php/bar' );
+				expect( urlParams ).to.eql( {} );
+				expect( bodyParams ).to.eql( {
+					param1: 'abc',
+					param2: 'xyz',
+				} );
+				expect( headers ).to.have.all.keys( /* 'accept', */ 'user-agent' );
+				// expect( headers.accept ).to.equal( 'application/json' ); // T412610
+				expect( headers[ 'user-agent' ] ).to.startWith( 'test-user-agent m3api/' );
+				expect( called ).to.be.false;
+				called = true;
+				return {
+					status: 200,
+					headers: {},
+					body: { the: 'body' },
+				};
+			}
+
+		}( 'https://wiki.test/testw/api.php' );
+
+		const response = await postForJson( session, '/bar', new URLSearchParams( {
+			param1: 'abc',
+			param2: 'xyz',
+		} ), {
+			userAgent: 'test-user-agent',
+		} );
+
+		expect( called ).to.be.true;
+		expect( response ).to.eql( { the: 'body' } );
+	} );
+
+	it( 'throws an error if the same param is given multiple times (instead of silently doing the wrong thing)', async () => {
+		const session = new Session( 'wiki.test' );
+
+		await expect( postForJson( session, '/', new URLSearchParams( [
+			[ 'param', 'x' ],
+			[ 'param', 'y' ],
+		] ) ) ).to.be.rejectedWith( Error );
 	} );
 
 } );
