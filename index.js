@@ -1,3 +1,39 @@
+export class InvalidStatusError extends Error {
+
+	/**
+	 * @param {number} status The invalid status code received from the API.
+	 */
+	constructor( status ) {
+		super( `Invalid HTTP status code received from MediaWiki REST API: ${ status }` );
+
+		if ( Error.captureStackTrace ) {
+			Error.captureStackTrace( this, InvalidStatusError );
+		}
+
+		this.name = 'InvalidStatusError';
+
+		/**
+		 * The invalid status code received from the API.
+		 *
+		 * @member {number}
+		 */
+		this.status = status;
+	}
+
+}
+
+/**
+ * Check the status code of the response and potentially throw an error based on it.
+ *
+ * @param {Object} internalResponse
+ */
+function checkResponseStatus( internalResponse ) {
+	const { status } = internalResponse;
+	if ( !Number.isInteger( status ) || status < 100 || status > 599 ) {
+		throw new InvalidStatusError( status );
+	}
+}
+
 /**
  * Encode a path for a REST API endpoint.
  *
@@ -39,6 +75,7 @@ export async function getJson( session, path, options = {} ) {
 		'user-agent': session.getUserAgent( options ),
 	};
 	const internalResponse = await session.internalGet( url, params, headers );
+	checkResponseStatus( internalResponse );
 	return internalResponse.body;
 }
 
@@ -72,5 +109,6 @@ export async function postForJson( session, path, params, options = {} ) {
 		'user-agent': session.getUserAgent( options ),
 	};
 	const internalResponse = await session.internalPost( url, urlParams, bodyParams, headers );
+	checkResponseStatus( internalResponse );
 	return internalResponse.body;
 }

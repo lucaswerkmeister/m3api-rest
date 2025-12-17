@@ -2,6 +2,7 @@
 
 import { Session } from 'm3api/core.js';
 import {
+	InvalidStatusError,
 	getJson,
 	path,
 	postForJson,
@@ -78,6 +79,37 @@ describe( 'getJson', () => {
 
 		expect( called ).to.be.true;
 		expect( response ).to.eql( { the: 'body' } );
+	} );
+
+	describe( 'checkResponseStatus', () => {
+
+		describe( 'throws InvalidStatusError for', () => {
+
+			for ( const status of [ 0, 99, 600, 599.9, 2000, 'not a number' ] ) {
+				it( JSON.stringify( status ), async () => {
+					let called = false;
+					const session = new class TestSession extends Session {
+
+						async internalGet() {
+							expect( called ).to.be.false;
+							called = true;
+							return {
+								status: status,
+								headers: {},
+								body: { the: 'body' },
+							};
+						}
+
+					}( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
+
+					await expect( getJson( session, '/foo' ) )
+						.to.be.rejectedWith( InvalidStatusError )
+						.and.eventually.have.property( 'status', status );
+				} );
+			}
+
+		} );
+
 	} );
 
 } );
