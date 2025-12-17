@@ -3,6 +3,7 @@
 import { Session } from 'm3api/core.js';
 import {
 	InvalidStatusError,
+	RestApiServerError,
 	getJson,
 	path,
 	postForJson,
@@ -83,28 +84,48 @@ describe( 'getJson', () => {
 
 	describe( 'checkResponseStatus', () => {
 
+		const body = { the: 'body' };
+
+		class StatusReturningTestSession extends Session {
+
+			constructor( status ) {
+				super( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
+				this.status = status;
+			}
+
+			async internalGet() {
+				return {
+					status: this.status,
+					headers: {},
+					body,
+				};
+			}
+
+		}
+
 		describe( 'throws InvalidStatusError for', () => {
 
 			for ( const status of [ 0, 99, 600, 599.9, 2000, 'not a number' ] ) {
 				it( JSON.stringify( status ), async () => {
-					let called = false;
-					const session = new class TestSession extends Session {
-
-						async internalGet() {
-							expect( called ).to.be.false;
-							called = true;
-							return {
-								status: status,
-								headers: {},
-								body: { the: 'body' },
-							};
-						}
-
-					}( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
+					const session = new StatusReturningTestSession( status );
 
 					await expect( getJson( session, '/foo' ) )
 						.to.be.rejectedWith( InvalidStatusError )
 						.and.eventually.have.property( 'status', status );
+				} );
+			}
+
+		} );
+
+		describe( 'throws RestApiServerError for', () => {
+
+			for ( const status of [ 500, 504, 599 ] ) {
+				it( JSON.stringify( status ), async () => {
+					const session = new StatusReturningTestSession( status );
+
+					await expect( getJson( session, '/foo' ) )
+						.to.be.rejectedWith( RestApiServerError )
+						.and.eventually.include( { status, body } );
 				} );
 			}
 

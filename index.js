@@ -23,14 +23,55 @@ export class InvalidStatusError extends Error {
 }
 
 /**
+ * An Error representing an HTTP 5xx response from the REST API.
+ */
+export class RestApiServerError extends Error {
+
+	/**
+	 * @param {number} status The invalid status code received from the API.
+	 * @param {string|Object} body The response body received from the API.
+	 */
+	constructor( status, body ) {
+		super( `REST API server error: ${ status }\n\n${ body }` );
+
+		if ( Error.captureStackTrace ) {
+			Error.captureStackTrace( this, RestApiServerError );
+		}
+
+		this.name = 'RestApiServerError';
+
+		/**
+		 * The invalid status code received from the API.
+		 *
+		 * @member {number}
+		 */
+		this.status = status;
+
+		/**
+		 * The body of the response.
+		 *
+		 * Depending on the response’s content type,
+		 * this may be a string or a JSON-decoded object.
+		 *
+		 * @member {string|Object}
+		 */
+		this.body = body;
+	}
+
+}
+
+/**
  * Check the status code of the response and potentially throw an error based on it.
  *
  * @param {Object} internalResponse
  */
 function checkResponseStatus( internalResponse ) {
-	const { status } = internalResponse;
+	const { status, body } = internalResponse;
 	if ( !Number.isInteger( status ) || status < 100 || status > 599 ) {
 		throw new InvalidStatusError( status );
+	}
+	if ( status >= 500 ) {
+		throw new RestApiServerError( status, body );
 	}
 }
 
