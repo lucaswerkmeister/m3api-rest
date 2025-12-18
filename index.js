@@ -1,27 +1,3 @@
-export class InvalidStatusError extends Error {
-
-	/**
-	 * @param {number} status The invalid status code received from the API.
-	 */
-	constructor( status ) {
-		super( `Invalid HTTP status code received from MediaWiki REST API: ${ status }` );
-
-		if ( Error.captureStackTrace ) {
-			Error.captureStackTrace( this, InvalidStatusError );
-		}
-
-		this.name = 'InvalidStatusError';
-
-		/**
-		 * The invalid status code received from the API.
-		 *
-		 * @member {number}
-		 */
-		this.status = status;
-	}
-
-}
-
 /**
  * An Error representing an HTTP 5xx response from the REST API.
  */
@@ -106,7 +82,8 @@ export class RestApiClientError extends Error {
 function checkResponseStatus( internalResponse ) {
 	const { status, body } = internalResponse;
 	if ( !Number.isInteger( status ) || status < 100 || status > 599 ) {
-		throw new InvalidStatusError( status );
+		// invalid status: RFC 9110 section 15 says treat it like 5xx
+		throw new RestApiServerError( status, body );
 	}
 	if ( status >= 500 ) {
 		throw new RestApiServerError( status, body );

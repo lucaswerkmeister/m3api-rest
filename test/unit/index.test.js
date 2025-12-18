@@ -2,7 +2,6 @@
 
 import { Session } from 'm3api/core.js';
 import {
-	InvalidStatusError,
 	RestApiClientError,
 	RestApiServerError,
 	getJson,
@@ -104,23 +103,23 @@ describe( 'getJson', () => {
 
 		}
 
-		describe( 'throws InvalidStatusError for', () => {
+		describe( 'throws RestApiServerError for', () => {
 
-			for ( const status of [ 0, 99, 600, 599.9, 2000, 'not a number' ] ) {
+			for ( const status of [ 500, 504, 599 ] ) {
 				it( JSON.stringify( status ), async () => {
 					const session = new StatusReturningTestSession( status );
 
 					await expect( getJson( session, '/foo' ) )
-						.to.be.rejectedWith( InvalidStatusError )
-						.and.eventually.have.property( 'status', status );
+						.to.be.rejectedWith( RestApiServerError )
+						.and.eventually.include( { status, body } );
 				} );
 			}
 
 		} );
 
-		describe( 'throws RestApiServerError for', () => {
+		describe( 'throws RestApiServerError for (invalid)', () => {
 
-			for ( const status of [ 500, 504, 599 ] ) {
+			for ( const status of [ 0, 99, 600, 599.9, 2000, 'not a number' ] ) {
 				it( JSON.stringify( status ), async () => {
 					const session = new StatusReturningTestSession( status );
 
