@@ -3,6 +3,7 @@
 import { Session } from 'm3api/core.js';
 import {
 	InvalidStatusError,
+	RestApiClientError,
 	RestApiServerError,
 	getJson,
 	path,
@@ -131,6 +132,20 @@ describe( 'getJson', () => {
 
 		} );
 
+		describe( 'throws RestApiClientError for', () => {
+
+			for ( const status of [ 400, 404, 499 ] ) {
+				it( JSON.stringify( status ), async () => {
+					const session = new StatusReturningTestSession( status );
+
+					await expect( getJson( session, '/foo' ) )
+						.to.be.rejectedWith( RestApiClientError )
+						.and.eventually.include( { status, body } );
+				} );
+			}
+
+		} );
+
 	} );
 
 } );
@@ -180,6 +195,28 @@ describe( 'postForJson', () => {
 			[ 'param', 'x' ],
 			[ 'param', 'y' ],
 		] ) ) ).to.be.rejectedWith( Error );
+	} );
+
+	it( 'throws a RestApiClientError for 404', async () => {
+		// the rest of checkResponseStatus() is tested in getJson() above
+		const session = new class StatusReturningTestSession extends Session {
+
+			async internalGet() {
+				return {
+					status: 404,
+					headers: {},
+					body: { the: 'body' },
+				};
+			}
+
+		}( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
+
+		await expect( getJson( session, '/foo' ) )
+			.to.be.rejectedWith( RestApiClientError )
+			.and.eventually.deep.include( {
+				status: 404,
+				body: { the: 'body' },
+			} );
 	} );
 
 } );

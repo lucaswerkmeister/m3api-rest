@@ -2,6 +2,7 @@
 
 import Session from 'm3api/node.js';
 import {
+	RestApiClientError,
 	getJson,
 	path,
 	postForJson,
@@ -25,6 +26,18 @@ describe( 'getJson', function () {
 		// given WP:DDMP, I think it’s reasonable to consider the main page’s ID stable
 		expect( page.id ).to.equal( 15580374 );
 		expect( page.content_model ).to.equal( 'wikitext' );
+	} );
+
+	it( 'throws RestApiClientError for missing page', async () => {
+		const session = new Session( 'en.wikipedia.org', {}, { userAgent } );
+
+		// creation-protected since 2014; used as the example on WP:RED
+		const title = 'Red link example';
+		// an alternative would be an invalid title like '['
+
+		await expect( getJson( session, path`/v1/page/${ title }/bare` ) )
+			.to.be.rejectedWith( RestApiClientError )
+			.and.eventually.include( { status: 404 } );
 	} );
 
 } );
