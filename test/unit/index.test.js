@@ -2,6 +2,7 @@
 
 import { Session } from 'm3api/core.js';
 import {
+	InvalidResponseBody,
 	RestApiClientError,
 	RestApiServerError,
 	getJson,
@@ -82,6 +83,35 @@ describe( 'getJson', () => {
 		expect( response ).to.eql( { the: 'body' } );
 	} );
 
+	it( 'returns an array body', async () => {
+		let called = false;
+		const session = new class TestSession extends Session {
+
+			async internalGet( url, params, headers ) {
+				expect( url ).to.equal( 'https://wiki.test/testw/rest.php/list' );
+				expect( params ).to.eql( {} );
+				expect( headers ).to.have.all.keys( 'accept', 'user-agent' );
+				expect( headers.accept ).to.equal( 'application/json' );
+				expect( headers[ 'user-agent' ] ).to.startWith( 'test-user-agent m3api/' );
+				expect( called ).to.be.false;
+				called = true;
+				return {
+					status: 200,
+					headers: {},
+					body: [ { index: 1 }, { index: 2 } ],
+				};
+			}
+
+		}( 'https://wiki.test/testw/api.php', {}, {
+			userAgent: 'test-user-agent',
+		} );
+
+		const response = await getJson( session, '/list' );
+
+		expect( called ).to.be.true;
+		expect( response ).to.eql( [ { index: 1 }, { index: 2 } ] );
+	} );
+
 	describe( 'checkResponseStatus', () => {
 
 		const body = { the: 'body' };
@@ -140,6 +170,41 @@ describe( 'getJson', () => {
 					await expect( getJson( session, '/foo' ) )
 						.to.be.rejectedWith( RestApiClientError )
 						.and.eventually.include( { status, body } );
+				} );
+			}
+
+		} );
+
+	} );
+
+	describe( 'getResponseJson', () => {
+
+		class BodyReturningTestSession extends Session {
+
+			constructor( body ) {
+				super( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
+				this.body = body;
+			}
+
+			async internalGet() {
+				return {
+					status: 200,
+					headers: {},
+					body: this.body,
+				};
+			}
+
+		}
+
+		describe( 'throws InvalidResponseBody for', () => {
+
+			for ( const body of [ true, false, null, 'string', 0, 1, '{}' ] ) {
+				it( JSON.stringify( body ), async () => {
+					const session = new BodyReturningTestSession( body );
+
+					await expect( getJson( session, '/foo' ) )
+						.to.be.rejectedWith( InvalidResponseBody )
+						.and.eventually.include( { body } );
 				} );
 			}
 

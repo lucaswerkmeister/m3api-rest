@@ -75,6 +75,36 @@ export class RestApiClientError extends Error {
 }
 
 /**
+ * An Error representing an invalid body in the REST API response.
+ */
+export class InvalidResponseBody extends Error {
+
+	/**
+	 * @param {*} body The invalid response body received from the API.
+	 */
+	constructor( body ) {
+		super( `Invalid REST API response body: ${ JSON.stringify( body ) }` );
+
+		if ( Error.captureStackTrace ) {
+			Error.captureStackTrace( this, InvalidResponseBody );
+		}
+
+		this.name = 'InvalidResponseBody';
+
+		/**
+		 * The body of the response.
+		 * Objects and arrays are expected response bodies,
+		 * so an unexpected body is probably some kind of primitive value,
+		 * such as a string, number or boolean.
+		 *
+		 * @member {*}
+		 */
+		this.body = body;
+	}
+
+}
+
+/**
  * Check the status code of the response and potentially throw an error based on it.
  *
  * @param {Object} internalResponse
@@ -90,6 +120,21 @@ function checkResponseStatus( internalResponse ) {
 	}
 	if ( status >= 400 ) {
 		throw new RestApiClientError( status, body );
+	}
+}
+
+/**
+ * Get the body of the response and check that it’s valid JSON.
+ *
+ * @param {Object} internalResponse
+ * @return {Object|Array}
+ */
+function getResponseJson( internalResponse ) {
+	const { body } = internalResponse;
+	if ( typeof body === 'object' && body !== null ) {
+		return body;
+	} else {
+		throw new InvalidResponseBody( body );
 	}
 }
 
@@ -123,7 +168,7 @@ export function path( strings, ...values ) {
  * Does not include the domain, script path, or `rest.php` endpoint.
  * Use the {@link path} tag function to build the path.
  * @param {Options} [options] Request options.
- * @return {Object} The body of the API response, JSON-decoded.
+ * @return {Object|Array} The body of the API response, JSON-decoded.
  */
 export async function getJson( session, path, options = {} ) {
 	const restUrl = session.apiUrl.replace( /api\.php$/, 'rest.php' );
@@ -135,7 +180,7 @@ export async function getJson( session, path, options = {} ) {
 	};
 	const internalResponse = await session.internalGet( url, params, headers );
 	checkResponseStatus( internalResponse );
-	return internalResponse.body;
+	return getResponseJson( internalResponse );
 }
 
 /**
@@ -150,7 +195,7 @@ export async function getJson( session, path, options = {} ) {
  * (Future versions of this library will support additional request body content types,
  * but that requires changes to m3api first.)
  * @param {Options} [options] Request options.
- * @return {Object} The body of the API response, JSON-decoded.
+ * @return {Object|Array} The body of the API response, JSON-decoded.
  */
 export async function postForJson( session, path, params, options = {} ) {
 	const restUrl = session.apiUrl.replace( /api\.php$/, 'rest.php' );
@@ -169,5 +214,5 @@ export async function postForJson( session, path, params, options = {} ) {
 	};
 	const internalResponse = await session.internalPost( url, urlParams, bodyParams, headers );
 	checkResponseStatus( internalResponse );
-	return internalResponse.body;
+	return getResponseJson( internalResponse );
 }
