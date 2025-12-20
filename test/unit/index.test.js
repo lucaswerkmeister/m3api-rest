@@ -3,6 +3,7 @@
 import { Session } from 'm3api/core.js';
 import {
 	InvalidResponseBody,
+	UnexpectedResponseStatus,
 	RestApiClientError,
 	RestApiServerError,
 	getJson,
@@ -169,6 +170,20 @@ describe( 'getJson', () => {
 
 					await expect( getJson( session, '/foo' ) )
 						.to.be.rejectedWith( RestApiClientError )
+						.and.eventually.include( { status, body } );
+				} );
+			}
+
+		} );
+
+		describe( 'throws UnexpectedResponseStatus for', () => {
+
+			for ( const status of [ 100, 103, 199, 300, 302, 399 ] ) {
+				it( JSON.stringify( status ), async () => {
+					const session = new StatusReturningTestSession( status );
+
+					await expect( getJson( session, '/foo' ) )
+						.to.be.rejectedWith( UnexpectedResponseStatus )
 						.and.eventually.include( { status, body } );
 				} );
 			}

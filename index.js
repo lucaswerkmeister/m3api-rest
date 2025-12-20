@@ -75,6 +75,46 @@ export class RestApiClientError extends Error {
 }
 
 /**
+ * An Error representing an unexpected HTTP response status (1xx or 3xx) from the REST API.
+ * 3xx responses are unexpected because the JavaScript runtime should have followed the redirect;
+ * 1xx responses are unexpected because it should have awaited the non-informational response.
+ */
+export class UnexpectedResponseStatus extends Error {
+
+	/**
+	 * @param {number} status The unexpected status code received from the API.
+	 * @param {string|Object} body The response body received from the API.
+	 */
+	constructor( status, body ) {
+		super( `Unexpected REST API response status: ${ status }\n\n${ body }` );
+
+		if ( Error.captureStackTrace ) {
+			Error.captureStackTrace( this, UnexpectedResponseStatus );
+		}
+
+		this.name = 'UnexpectedResponseStatus';
+
+		/**
+		 * The unexpected status code received from the API.
+		 *
+		 * @member {number}
+		 */
+		this.status = status;
+
+		/**
+		 * The body of the response.
+		 *
+		 * Depending on the response’s content type,
+		 * this may be a string or a JSON-decoded object.
+		 *
+		 * @member {string|Object}
+		 */
+		this.body = body;
+	}
+
+}
+
+/**
  * An Error representing an invalid body in the REST API response.
  */
 export class InvalidResponseBody extends Error {
@@ -120,6 +160,9 @@ function checkResponseStatus( internalResponse ) {
 	}
 	if ( status >= 400 ) {
 		throw new RestApiClientError( status, body );
+	}
+	if ( status < 200 || status >= 300 ) {
+		throw new UnexpectedResponseStatus( status, body );
 	}
 }
 
