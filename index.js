@@ -221,7 +221,7 @@ const responseStatuses = new WeakMap();
  *
  * @param {Object|Array} response A response object returned by one of the request functions
  * ({@link getJson} etc.). Note that it must be exactly the object returned by the function
- * (compared by identity, i.e. <code>===</code>), not a serialization of it or anything similar.
+ * (compared by identity, i.e. `===`), not a serialization of it or anything similar.
  * @return {number} The HTTP status code, i.e. an integer between 100 and 599.
  * (And for a successful response, really only between 200 and 299.)
  */
