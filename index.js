@@ -145,6 +145,54 @@ export class InvalidResponseBody extends Error {
 }
 
 /**
+ * An Error thrown if {@link getResponseStatus} is called with an unknown response.
+ *
+ * {@link getResponseStatus} must be called with a value that was previously returned
+ * by one of the request functions ({@link getJson} etc.).
+ * If this error is thrown, then {@link getResponseStatus} was called with some other value,
+ * and the response status cannot be determined.
+ * This may be the result of calling the function incorrectly.
+ *
+ * The following example shows how {@link getResponseStatus} can be used correctly:
+ * ```
+ * const title = 'Main Page';
+ * const page = await getJson( session, path`/v1/page/${ title }/bare` );
+ * const status = getResponseStatus( page );
+ * const { id, latest } = page;
+ * ```
+ *
+ * For comparison, the following usage of {@link getResponseStatus} is **incorrect**:
+ * ```
+ * const title = 'Main Page';
+ * const { id, latest } = await getJson( session, path`/v1/page/${ title }/bare` );
+ * const status = getResponseStatus( { id, latest } ); // this does not work
+ * ```
+ */
+export class UnknownResponseError extends Error {
+
+	/**
+	 * @param {*} response The unknown response passed into {@link getResponseStatus}.
+	 */
+	constructor( response ) {
+		super( `Unknown REST API response: ${ JSON.stringify( response ) }` );
+
+		if ( Error.captureStackTrace ) {
+			Error.captureStackTrace( this, UnknownResponseError );
+		}
+
+		this.name = 'UnknownResponseError';
+
+		/**
+		 * The unknown response passed into {@link getResponseStatus}.
+		 *
+		 * @member {*}
+		 */
+		this.response = response;
+	}
+
+}
+
+/**
  * Check the status code of the response and potentially throw an error based on it.
  *
  * @param {Object} internalResponse
@@ -166,6 +214,25 @@ function checkResponseStatus( internalResponse ) {
 	}
 }
 
+const responseStatuses = new WeakMap();
+
+/**
+ * Get the HTTP status code for this response.
+ *
+ * @param {Object|Array} response A response object returned by one of the request functions
+ * ({@link getJson} etc.). Note that it must be exactly the object returned by the function
+ * (compared by identity, i.e. <code>===</code>), not a serialization of it or anything similar.
+ * @return {number} The HTTP status code, i.e. an integer between 100 and 599.
+ * (And for a successful response, really only between 200 and 299.)
+ */
+export function getResponseStatus( response ) {
+	const status = responseStatuses.get( response );
+	if ( status === undefined ) {
+		throw new UnknownResponseError( response );
+	}
+	return status;
+}
+
 /**
  * Get the body of the response and check that it’s valid JSON.
  *
@@ -173,8 +240,9 @@ function checkResponseStatus( internalResponse ) {
  * @return {Object|Array}
  */
 function getResponseJson( internalResponse ) {
-	const { body } = internalResponse;
+	const { status, body } = internalResponse;
 	if ( typeof body === 'object' && body !== null ) {
+		responseStatuses.set( body, status );
 		return body;
 	} else {
 		throw new InvalidResponseBody( body );

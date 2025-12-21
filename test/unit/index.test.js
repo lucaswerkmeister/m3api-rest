@@ -4,9 +4,11 @@ import { Session } from 'm3api/core.js';
 import {
 	InvalidResponseBody,
 	UnexpectedResponseStatus,
+	UnknownResponseError,
 	RestApiClientError,
 	RestApiServerError,
 	getJson,
+	getResponseStatus,
 	path,
 	postForJson,
 } from '../../index.js';
@@ -53,9 +55,22 @@ describe( 'path', () => {
 
 } );
 
+describe( 'getResponseStatus', () => {
+
+	it( 'throws UnknownResponseError', () => {
+		const response = { the: 'body' };
+		expect( () => getResponseStatus( response ) )
+			.to.throw( UnknownResponseError )
+			.and.include( { response } );
+	} );
+
+	// the successful case is tested in getJson() below
+
+} );
+
 describe( 'getJson', () => {
 
-	it( 'makes a request with the right URL and headers and returns the body', async () => {
+	it( 'makes a request with the right URL and headers, registers the status and returns the body', async () => {
 		let called = false;
 		const session = new class TestSession extends Session {
 
@@ -82,9 +97,10 @@ describe( 'getJson', () => {
 
 		expect( called ).to.be.true;
 		expect( response ).to.eql( { the: 'body' } );
+		expect( getResponseStatus( response ) ).to.equal( 200 );
 	} );
 
-	it( 'returns an array body', async () => {
+	it( 'returns an array body and its status', async () => {
 		let called = false;
 		const session = new class TestSession extends Session {
 
@@ -97,7 +113,7 @@ describe( 'getJson', () => {
 				expect( called ).to.be.false;
 				called = true;
 				return {
-					status: 200,
+					status: 299,
 					headers: {},
 					body: [ { index: 1 }, { index: 2 } ],
 				};
@@ -111,6 +127,7 @@ describe( 'getJson', () => {
 
 		expect( called ).to.be.true;
 		expect( response ).to.eql( [ { index: 1 }, { index: 2 } ] );
+		expect( getResponseStatus( response ) ).to.equal( 299 );
 	} );
 
 	describe( 'checkResponseStatus', () => {

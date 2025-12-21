@@ -4,6 +4,7 @@ import Session from 'm3api/node.js';
 import {
 	RestApiClientError,
 	getJson,
+	getResponseStatus,
 	path,
 	postForJson,
 } from '../../index.js';
@@ -26,6 +27,7 @@ describe( 'getJson', function () {
 		// given WP:DDMP, I think it’s reasonable to consider the main page’s ID stable
 		expect( page.id ).to.equal( 15580374 );
 		expect( page.content_model ).to.equal( 'wikitext' );
+		expect( getResponseStatus( page ) ).to.equal( 200 );
 	} );
 
 	it( 'throws RestApiClientError for missing page', async () => {
@@ -54,6 +56,7 @@ describe( 'postForJson', function () {
 		} ) );
 
 		expect( response ).to.eql( [] );
+		expect( getResponseStatus( response ) ).to.eql( 200 );
 	} );
 
 } );
