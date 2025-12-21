@@ -195,6 +195,7 @@ export class UnknownResponseError extends Error {
 /**
  * Check the status code of the response and potentially throw an error based on it.
  *
+ * @private
  * @param {Object} internalResponse
  */
 function checkResponseStatus( internalResponse ) {
@@ -236,6 +237,7 @@ export function getResponseStatus( response ) {
 /**
  * Get the body of the response and check that it’s valid JSON.
  *
+ * @private
  * @param {Object} internalResponse
  * @return {Object|Array}
  */
