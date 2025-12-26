@@ -287,6 +287,22 @@ export function path( strings, ...values ) {
 }
 
 /**
+ * Split a given URL for the m3api internal interface.
+ *
+ * @param {string} url
+ * @return {Object}
+ */
+function splitUrlForInternalInterface( url ) {
+	url = new URL( url );
+	const params = {};
+	for ( const [ key, value ] of url.searchParams.entries() ) {
+		params[ key ] = value;
+	}
+	url.search = '';
+	return { url: String( url ), params };
+}
+
+/**
  * Make a GET request to a REST API endpoint and return the JSON-decoded body.
  *
  * @param {Session} session The m3api session to use for this request.
@@ -298,8 +314,7 @@ export function path( strings, ...values ) {
  */
 export async function getJson( session, path, options = {} ) {
 	const restUrl = session.apiUrl.replace( /api\.php$/, 'rest.php' );
-	const url = restUrl + path;
-	const params = {};
+	const { url, params } = splitUrlForInternalInterface( restUrl + path );
 	const headers = {
 		accept: 'application/json',
 		'user-agent': session.getUserAgent( options ),
@@ -325,8 +340,7 @@ export async function getJson( session, path, options = {} ) {
  */
 export async function postForJson( session, path, params, options = {} ) {
 	const restUrl = session.apiUrl.replace( /api\.php$/, 'rest.php' );
-	const url = restUrl + path;
-	const urlParams = {};
+	const { url, params: urlParams } = splitUrlForInternalInterface( restUrl + path );
 	const bodyParams = {};
 	for ( const [ key, value ] of params ) {
 		if ( Object.prototype.hasOwnProperty.call( bodyParams, key ) ) {
