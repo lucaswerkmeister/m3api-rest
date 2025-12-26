@@ -53,6 +53,13 @@ describe( 'path', () => {
 		expect( actual ).to.equal( '/growthexperiments/v0/quickstarttips/vector%2F2022/visual%2Feditor/copy%2Fedit/en%2Fgb' );
 	} );
 
+	it( 'URI-encodes query parameters', () => {
+		const id = 376020677;
+		const params = { stash: false, flavor: 'view' };
+		const actual = path`/v1/revision/${ id }/html?${ params }`;
+		expect( actual ).to.equal( '/v1/revision/376020677/html?stash=false&flavor=view' );
+	} );
+
 } );
 
 describe( 'getResponseStatus', () => {

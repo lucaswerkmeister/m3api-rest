@@ -262,15 +262,28 @@ function getResponseJson( internalResponse ) {
  * // makes a request to /v1/page/AC%2FDC
  * ```
  *
+ * Each parameter in the template can either be a string or an object of query params,
+ * for example:
+ * ```
+ * const id = 376020677;
+ * const params = { stash: false, flavor: 'view' };
+ * const json = await getJson( session, path`/v1/revision/${ id }/html?${ params }` );
+ * ```
+ *
  * (Calling this function like a regular function is not very useful,
  * so you can ignore the parameters documented below.)
  *
- * @param {string[]} strings
+ * @param {string|object[]} strings
  * @param {Array} values
  * @return {string}
  */
 export function path( strings, ...values ) {
-	return String.raw( { raw: strings }, ...values.map( encodeURIComponent ) );
+	return String.raw( { raw: strings }, ...values.map( ( value ) => {
+		if ( typeof value === 'object' ) {
+			return new URLSearchParams( value );
+		}
+		return encodeURIComponent( value );
+	} ) );
 }
 
 /**
