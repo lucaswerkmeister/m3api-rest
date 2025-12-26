@@ -270,6 +270,15 @@ function getResponseJson( internalResponse ) {
  * const json = await getJson( session, path`/v1/revision/${ id }/html?${ params }` );
  * ```
  *
+ * Alternatively, query params for GET requests can be specified separately:
+ * ```
+ * const id = 376020677;
+ * const json = await getJson( session, path`/v1/revision/${ id }/html`, {
+ *     stash: false,
+ *     flavor: 'view',
+ * } );
+ * ```
+ *
  * (Calling this function like a regular function is not very useful,
  * so you can ignore the parameters documented below.)
  *
@@ -294,12 +303,12 @@ export function path( strings, ...values ) {
  */
 function splitUrlForInternalInterface( url ) {
 	url = new URL( url );
-	const params = {};
+	const urlParams = {};
 	for ( const [ key, value ] of url.searchParams.entries() ) {
-		params[ key ] = value;
+		urlParams[ key ] = value;
 	}
 	url.search = '';
-	return { url: String( url ), params };
+	return { url: String( url ), urlParams };
 }
 
 /**
@@ -309,12 +318,14 @@ function splitUrlForInternalInterface( url ) {
  * @param {string} path The resource path, e.g. `/v1/search`.
  * Does not include the domain, script path, or `rest.php` endpoint.
  * Use the {@link path} tag function to build the path.
+ * @param {Object} [params] Query parameters for the request URL.
  * @param {Options} [options] Request options.
  * @return {Object|Array} The body of the API response, JSON-decoded.
  */
-export async function getJson( session, path, options = {} ) {
+export async function getJson( session, path, params, options = {} ) {
 	const restUrl = session.apiUrl.replace( /api\.php$/, 'rest.php' );
-	const { url, params } = splitUrlForInternalInterface( restUrl + path );
+	const { url, urlParams } = splitUrlForInternalInterface( restUrl + path );
+	params = { ...urlParams, ...params };
 	const headers = {
 		accept: 'application/json',
 		'user-agent': session.getUserAgent( options ),
@@ -340,7 +351,7 @@ export async function getJson( session, path, options = {} ) {
  */
 export async function postForJson( session, path, params, options = {} ) {
 	const restUrl = session.apiUrl.replace( /api\.php$/, 'rest.php' );
-	const { url, params: urlParams } = splitUrlForInternalInterface( restUrl + path );
+	const { url, urlParams } = splitUrlForInternalInterface( restUrl + path );
 	const bodyParams = {};
 	for ( const [ key, value ] of params ) {
 		if ( Object.prototype.hasOwnProperty.call( bodyParams, key ) ) {

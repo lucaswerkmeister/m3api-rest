@@ -30,14 +30,30 @@ describe( 'getJson', function () {
 		expect( getResponseStatus( page ) ).to.equal( 200 );
 	} );
 
-	it( 'gets search results', async () => {
-		const session = new Session( 'en.wikipedia.org', {}, { userAgent } );
+	describe( 'gets search results', () => {
 
-		const params = { q: 'test', limit: 1 };
-		const search = await getJson( session, path`/v1/search/page?${ params }` );
+		it( 'via params in path``', async () => {
+			const session = new Session( 'en.wikipedia.org', {}, { userAgent } );
 
-		expect( search ).to.have.property( 'pages' )
-			.to.have.length( 1 );
+			const params = { q: 'test', limit: 1 };
+			const search = await getJson( session, path`/v1/search/page?${ params }` );
+
+			expect( search ).to.have.property( 'pages' )
+				.to.have.length( 1 );
+		} );
+
+		it( 'via separate params', async () => {
+			const session = new Session( 'en.wikipedia.org', {}, { userAgent } );
+
+			const search = await getJson( session, path`/v1/search/page`, {
+				q: 'test',
+				limit: 1,
+			} );
+
+			expect( search ).to.have.property( 'pages' )
+				.to.have.length( 1 );
+		} );
+
 	} );
 
 	it( 'throws RestApiClientError for missing page', async () => {

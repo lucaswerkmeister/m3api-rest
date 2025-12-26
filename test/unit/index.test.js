@@ -98,13 +98,38 @@ describe( 'getJson', () => {
 
 		}( 'https://wiki.test/testw/api.php' );
 
-		const response = await getJson( session, '/foo', {
+		const response = await getJson( session, '/foo', {}, {
 			userAgent: 'test-user-agent',
 		} );
 
 		expect( called ).to.be.true;
 		expect( response ).to.eql( { the: 'body' } );
 		expect( getResponseStatus( response ) ).to.equal( 200 );
+	} );
+
+	it( 'merges request params from the URL and function parameters', async () => {
+		const session = new class TestSession extends Session {
+
+			async internalGet( url, params ) {
+				expect( url ).to.equal( 'https://wiki.test/testw/rest.php/foo' );
+				expect( params ).to.eql( {
+					pathparam: 'path param',
+					functionparam: 'function param',
+				} );
+				return {
+					status: 200,
+					headers: {},
+					body: { the: 'body' },
+				};
+			}
+
+		}( 'https://wiki.test/testw/api.php', {}, { userAgent: 'test-user-agent' } );
+
+		const response = await getJson( session, path`/foo?${ { pathparam: 'path param' } }`, {
+			functionparam: 'function param',
+		} );
+
+		expect( response ).to.eql( { the: 'body' } );
 	} );
 
 	it( 'returns an array body and its status', async () => {
