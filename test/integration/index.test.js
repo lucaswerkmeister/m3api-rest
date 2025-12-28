@@ -20,55 +20,41 @@ describe( 'getJson', function () {
 
 	describe( 'gets bare page information', () => {
 
-		it( 'via params in path``', async () => {
-			const session = new Session( 'en.wikipedia.org', {}, { userAgent } );
+		for ( const [ name, pageGetter ] of [
+			[ 'via params in path``', ( session, title ) => getJson( session, path`/v1/page/${ title }/bare` ) ],
+			[ 'via separate params', ( session, title ) => getJson( session, '/v1/page/{title}/bare', { title } ) ],
+		] ) {
+			it( name, async () => {
+				const session = new Session( 'en.wikipedia.org', {}, { userAgent } );
+				const title = 'Main Page';
 
-			const title = 'Main Page';
-			const page = await getJson( session, path`/v1/page/${ title }/bare` );
+				const page = await pageGetter( session, title );
 
-			// given WP:DDMP, I think it’s reasonable to consider the main page’s ID stable
-			expect( page.id ).to.equal( 15580374 );
-			expect( page.content_model ).to.equal( 'wikitext' );
-			expect( getResponseStatus( page ) ).to.equal( 200 );
-		} );
-
-		it( 'via separate params', async () => {
-			const session = new Session( 'en.wikipedia.org', {}, { userAgent } );
-
-			const title = 'Main Page';
-			const page = await getJson( session, '/v1/page/{title}/bare', { title } );
-
-			// given WP:DDMP, I think it’s reasonable to consider the main page’s ID stable
-			expect( page.id ).to.equal( 15580374 );
-			expect( page.content_model ).to.equal( 'wikitext' );
-			expect( getResponseStatus( page ) ).to.equal( 200 );
-		} );
+				// given WP:DDMP, I think it’s reasonable to consider the main page’s ID stable
+				expect( page.id ).to.equal( 15580374 );
+				expect( page.content_model ).to.equal( 'wikitext' );
+				expect( getResponseStatus( page ) ).to.equal( 200 );
+			} );
+		}
 
 	} );
 
 	describe( 'gets search results', () => {
 
-		it( 'via params in path``', async () => {
-			const session = new Session( 'en.wikipedia.org', {}, { userAgent } );
+		for ( const [ name, searchGetter ] of [
+			[ 'via params in path``', ( session, params ) => getJson( session, path`/v1/search/page?${ params }` ) ],
+			[ 'via separate params', ( session, params ) => getJson( session, '/v1/search/page', params ) ],
+		] ) {
+			it( name, async () => {
+				const session = new Session( 'en.wikipedia.org', {}, { userAgent } );
+				const params = { q: 'test', limit: 1 };
 
-			const params = { q: 'test', limit: 1 };
-			const search = await getJson( session, path`/v1/search/page?${ params }` );
+				const search = await searchGetter( session, params );
 
-			expect( search ).to.have.property( 'pages' )
-				.to.have.length( 1 );
-		} );
-
-		it( 'via separate params', async () => {
-			const session = new Session( 'en.wikipedia.org', {}, { userAgent } );
-
-			const search = await getJson( session, path`/v1/search/page`, {
-				q: 'test',
-				limit: 1,
+				expect( search ).to.have.property( 'pages' )
+					.to.have.length( 1 );
 			} );
-
-			expect( search ).to.have.property( 'pages' )
-				.to.have.length( 1 );
-		} );
+		}
 
 	} );
 
