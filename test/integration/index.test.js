@@ -18,16 +18,32 @@ describe( 'getJson', function () {
 
 	this.timeout( 60000 );
 
-	it( 'gets bare page information', async () => {
-		const session = new Session( 'en.wikipedia.org', {}, { userAgent } );
+	describe( 'gets bare page information', () => {
 
-		const title = 'Main Page';
-		const page = await getJson( session, path`/v1/page/${ title }/bare` );
+		it( 'via params in path``', async () => {
+			const session = new Session( 'en.wikipedia.org', {}, { userAgent } );
 
-		// given WP:DDMP, I think it’s reasonable to consider the main page’s ID stable
-		expect( page.id ).to.equal( 15580374 );
-		expect( page.content_model ).to.equal( 'wikitext' );
-		expect( getResponseStatus( page ) ).to.equal( 200 );
+			const title = 'Main Page';
+			const page = await getJson( session, path`/v1/page/${ title }/bare` );
+
+			// given WP:DDMP, I think it’s reasonable to consider the main page’s ID stable
+			expect( page.id ).to.equal( 15580374 );
+			expect( page.content_model ).to.equal( 'wikitext' );
+			expect( getResponseStatus( page ) ).to.equal( 200 );
+		} );
+
+		it( 'via separate params', async () => {
+			const session = new Session( 'en.wikipedia.org', {}, { userAgent } );
+
+			const title = 'Main Page';
+			const page = await getJson( session, '/v1/page/{title}/bare', { title } );
+
+			// given WP:DDMP, I think it’s reasonable to consider the main page’s ID stable
+			expect( page.id ).to.equal( 15580374 );
+			expect( page.content_model ).to.equal( 'wikitext' );
+			expect( getResponseStatus( page ) ).to.equal( 200 );
+		} );
+
 	} );
 
 	describe( 'gets search results', () => {

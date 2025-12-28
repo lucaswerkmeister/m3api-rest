@@ -193,6 +193,54 @@ export class UnknownResponseError extends Error {
 }
 
 /**
+ * An Error thrown if a request path contains an unsubstituted parameter.
+ *
+ * For example, if {@link getJson} is called with the path `/v1/page/{title}`,
+ * the `title` must be specified in the params, like this:
+ * ```
+ * const title = 'Main Page';
+ * const page = await getJson( session, '/v1/page/{title}', { title } );
+ * ```
+ *
+ * Alternatively, you can directly interpolate the title using {@link path}:
+ * ```
+ * const title = 'Main Page';
+ * const page = await getJson( session, path`/v1/page/${ title }` );
+ * ```
+ *
+ * But the following is invalid and will result in this error being thrown:
+ * ```
+ * const page = await getJson( session, '/v1/page/{title}' ); // which title?
+ * // ^ throws InvalidPathParams
+ * ```
+ *
+ * (Another, less common condition under which this error may be thrown
+ * is that a path parameter was assigned multiple values;
+ * this is possible with functions like {@link postForJson},
+ * where the params of type {@link URLSearchParams} can contain
+ * multiple values for the same name.)
+ */
+export class InvalidPathParams extends Error {
+
+	constructor( message, path, paramName, params ) {
+		super( message );
+
+		if ( Error.captureStackTrace ) {
+			Error.captureStackTrace( this, InvalidPathParams );
+		}
+
+		this.name = 'InvalidPathParams';
+
+		this.path = path;
+
+		this.paramName = paramName;
+
+		this.params = params;
+	}
+
+}
+
+/**
  * Check the status code of the response and potentially throw an error based on it.
  *
  * @private
@@ -296,6 +344,56 @@ export function path( strings, ...values ) {
 }
 
 /**
+ * Substitute template expressions in the path,
+ * taking values from the given params.
+ *
+ * @param {string} path The path with optional `{param}` expressions.
+ * @param {Object|URLSearchParams} params The input params. Not modified.
+ * @return {Object} The potentially modified path and params.
+ */
+function substitutePathParams( path, params ) {
+	let copiedParams = null;
+	const substitutedPath = path.replace( /\{[^{}]+\}/g, ( match ) => {
+		const paramName = match.slice( 1, -1 );
+		if ( params instanceof URLSearchParams ) {
+			if ( copiedParams === null ) {
+				copiedParams = new URLSearchParams( params );
+			}
+			const values = copiedParams.getAll( paramName );
+			if ( values.length !== 1 ) {
+				throw new InvalidPathParams(
+					values.length === 0 ?
+						`Unspecified path param ${ match }` :
+						`Ambiguous path param ${ match }`,
+					path,
+					paramName,
+					params,
+				);
+			}
+			copiedParams.delete( paramName );
+			return values[ 0 ];
+		} else {
+			if ( copiedParams === null ) {
+				copiedParams = { ...params };
+			}
+			const value = copiedParams[ paramName ];
+			if ( value === undefined ) {
+				throw new InvalidPathParams(
+					`Unspecified path param ${ match }`,
+					path,
+					paramName,
+					params,
+				);
+			}
+			delete copiedParams[ paramName ];
+			return value;
+		}
+	} );
+
+	return { path: substitutedPath, params: copiedParams || params };
+}
+
+/**
  * Split a given URL for the m3api internal interface.
  *
  * @param {string} url
@@ -318,11 +416,13 @@ function splitUrlForInternalInterface( url ) {
  * @param {string} path The resource path, e.g. `/v1/search`.
  * Does not include the domain, script path, or `rest.php` endpoint.
  * Use the {@link path} tag function to build the path.
- * @param {Object} [params] Query parameters for the request URL.
+ * @param {Object} [params] Parameters for the request URL.
+ * This may include both parameters for the path and query parameters.
  * @param {Options} [options] Request options.
  * @return {Object|Array} The body of the API response, JSON-decoded.
  */
 export async function getJson( session, path, params, options = {} ) {
+	( { path, params } = substitutePathParams( path, params ) );
 	const restUrl = session.apiUrl.replace( /api\.php$/, 'rest.php' );
 	const { url, urlParams } = splitUrlForInternalInterface( restUrl + path );
 	params = { ...urlParams, ...params };
@@ -346,10 +446,12 @@ export async function getJson( session, path, params, options = {} ) {
  * Will be sent using the `application/x-www-form-urlencoded` content type.
  * (Future versions of this library will support additional request body content types,
  * but that requires changes to m3api first.)
+ * You may also include parameters for the path here.
  * @param {Options} [options] Request options.
  * @return {Object|Array} The body of the API response, JSON-decoded.
  */
 export async function postForJson( session, path, params, options = {} ) {
+	( { path, params } = substitutePathParams( path, params ) );
 	const restUrl = session.apiUrl.replace( /api\.php$/, 'rest.php' );
 	const { url, urlParams } = splitUrlForInternalInterface( restUrl + path );
 	const bodyParams = {};

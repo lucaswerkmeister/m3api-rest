@@ -2,6 +2,7 @@
 
 import { Session } from 'm3api/core.js';
 import {
+	InvalidPathParams,
 	InvalidResponseBody,
 	UnexpectedResponseStatus,
 	UnknownResponseError,
@@ -160,6 +161,57 @@ describe( 'getJson', () => {
 		expect( called ).to.be.true;
 		expect( response ).to.eql( [ { index: 1 }, { index: 2 } ] );
 		expect( getResponseStatus( response ) ).to.equal( 299 );
+	} );
+
+	describe( 'substitutePathParams', () => {
+
+		it( 'pulls path params out of the params', async () => {
+			const session = new class TestSession extends Session {
+
+				async internalGet( url, params ) {
+					expect( url ).to.equal( 'https://wiki.test/w/rest.php/foo/BAR/baz/QUX' );
+					expect( params ).to.eql( {
+						foo: 'FOO',
+						baz: 'BAZ',
+					} );
+					return {
+						status: 200,
+						headers: {},
+						body: { the: 'body' },
+					};
+				}
+
+			}( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
+
+			const path = '/foo/{bar}/baz/{qux}';
+			const params = {
+				foo: 'FOO',
+				bar: 'BAR',
+				baz: 'BAZ',
+				qux: 'QUX',
+			};
+			const response = await getJson( session, path, params );
+
+			expect( response ).to.eql( { the: 'body' } );
+			expect( params, 'original params (unmodified)' ).to.eql( {
+				foo: 'FOO',
+				bar: 'BAR',
+				baz: 'BAZ',
+				qux: 'QUX',
+			} );
+		} );
+
+		it( 'throws InvalidPathParams for missing param', async () => {
+			const session = new Session( 'wiki.test' );
+
+			const path = '/foo/{bar}/baz/{qux}';
+			const params = { bar: 'BAR' };
+
+			await expect( getJson( session, path, params ) )
+				.to.be.rejectedWith( InvalidPathParams, 'Unspecified path param {qux}' )
+				.and.eventually.include( { path, paramName: 'qux', params } );
+		} );
+
 	} );
 
 	describe( 'checkResponseStatus', () => {
@@ -345,6 +397,73 @@ describe( 'postForJson', () => {
 				status: 404,
 				body: { the: 'body' },
 			} );
+	} );
+
+	describe( 'substitutePathParams', () => {
+
+		it( 'pulls path params out of the params', async () => {
+			const session = new class TestSession extends Session {
+
+				async internalPost( url, urlParams, bodyParams ) {
+					expect( url ).to.equal( 'https://wiki.test/w/rest.php/foo/BAR/baz/QUX' );
+					expect( urlParams ).to.eql( {} );
+					expect( bodyParams ).to.eql( {
+						foo: 'FOO',
+						baz: 'BAZ',
+					} );
+					return {
+						status: 200,
+						headers: {},
+						body: { the: 'body' },
+					};
+				}
+
+			}( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
+
+			const path = '/foo/{bar}/baz/{qux}';
+			const params = new URLSearchParams( [
+				[ 'foo', 'FOO' ],
+				[ 'bar', 'BAR' ],
+				[ 'baz', 'BAZ' ],
+				[ 'qux', 'QUX' ],
+			] );
+			const response = await postForJson( session, path, params );
+
+			expect( response ).to.eql( { the: 'body' } );
+			expect( [ ...params.entries() ], 'original params (unmodified)' ).to.eql( [
+				[ 'foo', 'FOO' ],
+				[ 'bar', 'BAR' ],
+				[ 'baz', 'BAZ' ],
+				[ 'qux', 'QUX' ],
+			] );
+		} );
+
+		it( 'throws InvalidPathParams for missing param', async () => {
+			const session = new Session( 'wiki.test' );
+
+			const path = '/foo/{bar}/baz/{qux}';
+			const params = new URLSearchParams( [ [ 'bar', 'BAR' ] ] );
+
+			await expect( getJson( session, path, params ) )
+				.to.be.rejectedWith( InvalidPathParams, 'Unspecified path param {qux}' )
+				.and.eventually.include( { path, paramName: 'qux', params } );
+		} );
+
+		it( 'throws InvalidPathParams for ambiguous param', async () => {
+			const session = new Session( 'wiki.test' );
+
+			const path = '/foo/{bar}/baz/{qux}';
+			const params = new URLSearchParams( [
+				[ 'bar', 'BAR' ],
+				[ 'qux', 'QUX' ],
+				[ 'qux', 'QUY' ],
+			] );
+
+			await expect( getJson( session, path, params ) )
+				.to.be.rejectedWith( InvalidPathParams, 'Ambiguous path param {qux}' )
+				.and.eventually.include( { path, paramName: 'qux', params } );
+		} );
+
 	} );
 
 } );
