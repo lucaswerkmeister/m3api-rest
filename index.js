@@ -371,7 +371,7 @@ function substitutePathParams( path, params ) {
 				);
 			}
 			copiedParams.delete( paramName );
-			return values[ 0 ];
+			return encodeURIComponent( values[ 0 ] );
 		} else {
 			if ( copiedParams === null ) {
 				copiedParams = { ...params };
@@ -386,7 +386,7 @@ function substitutePathParams( path, params ) {
 				);
 			}
 			delete copiedParams[ paramName ];
-			return value;
+			return encodeURIComponent( value );
 		}
 	} );
 

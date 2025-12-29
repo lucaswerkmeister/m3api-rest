@@ -201,6 +201,28 @@ describe( 'getJson', () => {
 			} );
 		} );
 
+		it( 'URI-encodes path params', async () => {
+			const session = new class TestSession extends Session {
+
+				async internalGet( url, params ) {
+					expect( url ).to.equal( 'https://wiki.test/w/rest.php/foo/BAR%2FBAZ/qux' );
+					expect( params ).to.eql( {} );
+					return {
+						status: 200,
+						headers: {},
+						body: { the: 'body' },
+					};
+				}
+
+			}( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
+
+			const response = await getJson( session, '/foo/{bar}/qux', {
+				bar: 'BAR/BAZ',
+			} );
+
+			expect( response ).to.eql( { the: 'body' } );
+		} );
+
 		it( 'throws InvalidPathParams for missing param', async () => {
 			const session = new Session( 'wiki.test' );
 
@@ -436,6 +458,29 @@ describe( 'postForJson', () => {
 				[ 'baz', 'BAZ' ],
 				[ 'qux', 'QUX' ],
 			] );
+		} );
+
+		it( 'URI-encodes path params', async () => {
+			const session = new class TestSession extends Session {
+
+				async internalPost( url, urlParams, bodyParams ) {
+					expect( url ).to.equal( 'https://wiki.test/w/rest.php/foo/BAR%2FBAZ/qux' );
+					expect( urlParams ).to.eql( {} );
+					expect( bodyParams ).to.eql( {} );
+					return {
+						status: 200,
+						headers: {},
+						body: { the: 'body' },
+					};
+				}
+
+			}( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
+
+			const response = await postForJson( session, '/foo/{bar}/qux', new URLSearchParams( {
+				bar: 'BAR/BAZ',
+			} ) );
+
+			expect( response ).to.eql( { the: 'body' } );
 		} );
 
 		it( 'throws InvalidPathParams for missing param', async () => {
