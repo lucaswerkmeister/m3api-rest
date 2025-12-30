@@ -428,7 +428,7 @@ export async function getJson( session, path, params, options = {} ) {
 	params = { ...urlParams, ...params };
 	const headers = {
 		accept: 'application/json',
-		'user-agent': session.getUserAgent( options ),
+		...session.getRequestHeaders( options ),
 	};
 	const internalResponse = await session.internalGet( url, params, headers );
 	checkResponseStatus( internalResponse );
@@ -463,7 +463,7 @@ export async function postForJson( session, path, params, options = {} ) {
 	}
 	const headers = {
 		// accept: 'application/json', // skip this for now due to T412610
-		'user-agent': session.getUserAgent( options ),
+		...session.getRequestHeaders( options ),
 	};
 	const internalResponse = await session.internalPost( url, urlParams, bodyParams, headers );
 	checkResponseStatus( internalResponse );

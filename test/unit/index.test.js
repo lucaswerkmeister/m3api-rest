@@ -163,6 +163,28 @@ describe( 'getJson', () => {
 		expect( getResponseStatus( response ) ).to.equal( 299 );
 	} );
 
+	it( 'sends an Authorization header if specified', async () => {
+		const session = new class TestSession extends Session {
+
+			async internalGet( url, params, headers ) {
+				expect( headers ).to.have.property( 'authorization', 'Bearer test access token' );
+				return {
+					status: 200,
+					headers: {},
+					body: { the: 'body' },
+				};
+			}
+
+		}( 'wiki.test', {}, {
+			userAgent: 'test-user-agent',
+			accessToken: 'test access token',
+		} );
+
+		const response = await getJson( session, '/foo' );
+
+		expect( response ).to.eql( { the: 'body' } );
+	} );
+
 	describe( 'substitutePathParams', () => {
 
 		it( 'pulls path params out of the params', async () => {
@@ -387,6 +409,28 @@ describe( 'postForJson', () => {
 		} );
 
 		expect( called ).to.be.true;
+		expect( response ).to.eql( { the: 'body' } );
+	} );
+
+	it( 'sends an Authorization header if specified', async () => {
+		const session = new class TestSession extends Session {
+
+			async internalPost( url, urlParams, bodyParams, headers ) {
+				expect( headers ).to.have.property( 'authorization', 'Bearer test access token' );
+				return {
+					status: 200,
+					headers: {},
+					body: { the: 'body' },
+				};
+			}
+
+		}( 'wiki.test', {}, {
+			userAgent: 'test-user-agent',
+			accessToken: 'test access token',
+		} );
+
+		const response = await postForJson( session, '/foo', new URLSearchParams() );
+
 		expect( response ).to.eql( { the: 'body' } );
 	} );
 
