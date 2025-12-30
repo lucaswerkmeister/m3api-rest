@@ -8,7 +8,7 @@ export class RestApiServerError extends Error {
 	 * @param {string|Object} body The response body received from the API.
 	 */
 	constructor( status, body ) {
-		super( `REST API server error: ${ status }\n\n${ body }` );
+		super( `REST API server error: ${ status }\n\n${ JSON.stringify( body ) }` );
 
 		if ( Error.captureStackTrace ) {
 			Error.captureStackTrace( this, RestApiServerError );
@@ -46,7 +46,7 @@ export class RestApiClientError extends Error {
 	 * @param {string|Object} body The response body received from the API.
 	 */
 	constructor( status, body ) {
-		super( `REST API client error: ${ status }\n\n${ body }` );
+		super( `REST API client error: ${ status }\n\n${ JSON.stringify( body ) }` );
 
 		if ( Error.captureStackTrace ) {
 			Error.captureStackTrace( this, RestApiClientError );
@@ -86,7 +86,7 @@ export class UnexpectedResponseStatus extends Error {
 	 * @param {string|Object} body The response body received from the API.
 	 */
 	constructor( status, body ) {
-		super( `Unexpected REST API response status: ${ status }\n\n${ body }` );
+		super( `Unexpected REST API response status: ${ status }\n\n${ JSON.stringify( body ) }` );
 
 		if ( Error.captureStackTrace ) {
 			Error.captureStackTrace( this, UnexpectedResponseStatus );
