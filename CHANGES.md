@@ -9,4 +9,12 @@ but this file may sometimes contain later improvements (e.g. typo fixes).
 
 Initial release, including:
 
-- ...
+- `getJson()` and `postForJson()` functions,
+  for making GET and POST requests returning JSON data.
+- ``` path`` ``` template literal tag function,
+  for encoding request paths.
+- `getResponseStatus()` function,
+  for getting the HTTP status code of a response.
+- `RestApiServerError`, `RestApiClientError`,
+  `UnexpectedResponseStatus`, `InvalidResponseBody`,
+  and `UnknownResponseError` error classes thrown by these functions.
