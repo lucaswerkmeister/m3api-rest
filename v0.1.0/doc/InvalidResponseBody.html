@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>m3api-rest: Class: UnexpectedResponseStatus</title>
+    <title>m3api-rest: Class: InvalidResponseBody</title>
 
     <script defer src="scripts/prettify/prettify.js"></script>
     <script defer src="scripts/prettify/lang-css.js"></script>
@@ -15,9 +15,9 @@
 
 <div id="main">
 
-    <p class="version-warning"><strong>Warning:</strong> This is an old version. The latest stable version is <a href="../v0.1.0/UnexpectedResponseStatus.html">v0.1.0</a>.</p>
+    <!-- VERSION-WARNING -->
 
-    <h1 class="page-title">Class: UnexpectedResponseStatus</h1>
+    <h1 class="page-title">Class: InvalidResponseBody</h1>
 
     
 
@@ -28,11 +28,9 @@
 
 <header>
     
-        <h2><span class="attribs"><span class="type-signature"></span></span>UnexpectedResponseStatus<span class="signature">(status, body)</span><span class="type-signature"></span></h2>
+        <h2><span class="attribs"><span class="type-signature"></span></span>InvalidResponseBody<span class="signature">(body)</span><span class="type-signature"></span></h2>
         
-            <div class="class-description"><p>An Error representing an unexpected HTTP response status (1xx or 3xx) from the REST API.
-3xx responses are unexpected because the JavaScript runtime should have followed the redirect;
-1xx responses are unexpected because it should have awaited the non-informational response.</p></div>
+            <div class="class-description"><p>An Error representing an invalid body in the REST API response.</p></div>
         
     
 </header>
@@ -47,7 +45,7 @@
     
 
     
-    <h4 class="name" id="UnexpectedResponseStatus"><span class="type-signature"></span>new UnexpectedResponseStatus<span class="signature">(status, body)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="InvalidResponseBody"><span class="type-signature"></span>new InvalidResponseBody<span class="signature">(body)</span><span class="type-signature"></span></h4>
     
 
     
@@ -87,39 +85,13 @@
 
         <tr>
             
-                <td class="name"><code>status</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">number</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"><p>The unexpected status code received from the API.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
                 <td class="name"><code>body</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">string</span>
-|
-
-<span class="param-type">Object</span>
+<span class="param-type">*</span>
 
 
             
@@ -129,7 +101,7 @@
 
             
 
-            <td class="description last"><p>The response body received from the API.</p></td>
+            <td class="description last"><p>The invalid response body received from the API.</p></td>
         </tr>
 
     
@@ -170,7 +142,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line82">line 82</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line120">line 120</a>
     </li></ul></dd>
     
 
@@ -211,7 +183,7 @@
         <h3 class="subsection-title">Classes</h3>
 
         <dl>
-            <dt><a href="UnexpectedResponseStatus.html">UnexpectedResponseStatus</a></dt>
+            <dt><a href="InvalidResponseBody.html">InvalidResponseBody</a></dt>
             <dd></dd>
         </dl>
     
@@ -227,15 +199,16 @@
 
         
             
-<h4 class="name" id="body"><span class="type-signature"></span>body<span class="type-signature"> :string|Object</span></h4>
+<h4 class="name" id="body"><span class="type-signature"></span>body<span class="type-signature"> :*</span></h4>
 
 
 
 
 <div class="description">
-    <p>The body of the response.</p>
-<p>Depending on the response’s content type,
-this may be a string or a JSON-decoded object.</p>
+    <p>The body of the response.
+Objects and arrays are expected response bodies,
+so an unexpected body is probably some kind of primitive value,
+such as a string, number or boolean.</p>
 </div>
 
 
@@ -244,10 +217,7 @@ this may be a string or a JSON-decoded object.</p>
     <ul>
         <li>
             
-<span class="param-type">string</span>
-|
-
-<span class="param-type">Object</span>
+<span class="param-type">*</span>
 
 
         </li>
@@ -286,79 +256,7 @@ this may be a string or a JSON-decoded object.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line112">line 112</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-        
-            
-<h4 class="name" id="status"><span class="type-signature"></span>status<span class="type-signature"> :number</span></h4>
-
-
-
-
-<div class="description">
-    <p>The unexpected status code received from the API.</p>
-</div>
-
-
-
-    <h5>Type:</h5>
-    <ul>
-        <li>
-            
-<span class="param-type">number</span>
-
-
-        </li>
-    </ul>
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line102">line 102</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line142">line 142</a>
     </li></ul></dd>
     
 

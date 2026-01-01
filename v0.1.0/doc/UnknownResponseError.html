@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>m3api-rest: Class: UnexpectedResponseStatus</title>
+    <title>m3api-rest: Class: UnknownResponseError</title>
 
     <script defer src="scripts/prettify/prettify.js"></script>
     <script defer src="scripts/prettify/lang-css.js"></script>
@@ -15,9 +15,9 @@
 
 <div id="main">
 
-    <p class="version-warning"><strong>Warning:</strong> This is an old version. The latest stable version is <a href="../v0.1.0/UnexpectedResponseStatus.html">v0.1.0</a>.</p>
+    <!-- VERSION-WARNING -->
 
-    <h1 class="page-title">Class: UnexpectedResponseStatus</h1>
+    <h1 class="page-title">Class: UnknownResponseError</h1>
 
     
 
@@ -28,11 +28,25 @@
 
 <header>
     
-        <h2><span class="attribs"><span class="type-signature"></span></span>UnexpectedResponseStatus<span class="signature">(status, body)</span><span class="type-signature"></span></h2>
+        <h2><span class="attribs"><span class="type-signature"></span></span>UnknownResponseError<span class="signature">(response)</span><span class="type-signature"></span></h2>
         
-            <div class="class-description"><p>An Error representing an unexpected HTTP response status (1xx or 3xx) from the REST API.
-3xx responses are unexpected because the JavaScript runtime should have followed the redirect;
-1xx responses are unexpected because it should have awaited the non-informational response.</p></div>
+            <div class="class-description"><p>An Error thrown if <a href="global.html#getResponseStatus">getResponseStatus</a> is called with an unknown response.</p>
+<p><a href="global.html#getResponseStatus">getResponseStatus</a> must be called with a value that was previously returned
+by one of the request functions (<a href="global.html#getJson">getJson</a> etc.).
+If this error is thrown, then <a href="global.html#getResponseStatus">getResponseStatus</a> was called with some other value,
+and the response status cannot be determined.
+This may be the result of calling the function incorrectly.</p>
+<p>The following example shows how <a href="global.html#getResponseStatus">getResponseStatus</a> can be used correctly:</p>
+<pre class="prettyprint source"><code>const title = 'Main Page';
+const page = await getJson( session, path`/v1/page/${ title }/bare` );
+const status = getResponseStatus( page );
+const { id, latest } = page;
+</code></pre>
+<p>For comparison, the following usage of <a href="global.html#getResponseStatus">getResponseStatus</a> is <strong>incorrect</strong>:</p>
+<pre class="prettyprint source"><code>const title = 'Main Page';
+const { id, latest } = await getJson( session, path`/v1/page/${ title }/bare` );
+const status = getResponseStatus( { id, latest } ); // this does not work
+</code></pre></div>
         
     
 </header>
@@ -47,7 +61,7 @@
     
 
     
-    <h4 class="name" id="UnexpectedResponseStatus"><span class="type-signature"></span>new UnexpectedResponseStatus<span class="signature">(status, body)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="UnknownResponseError"><span class="type-signature"></span>new UnknownResponseError<span class="signature">(response)</span><span class="type-signature"></span></h4>
     
 
     
@@ -87,13 +101,13 @@
 
         <tr>
             
-                <td class="name"><code>status</code></td>
+                <td class="name"><code>response</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">number</span>
+<span class="param-type">*</span>
 
 
             
@@ -103,33 +117,7 @@
 
             
 
-            <td class="description last"><p>The unexpected status code received from the API.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>body</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-|
-
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"><p>The response body received from the API.</p></td>
+            <td class="description last"><p>The unknown response passed into <a href="global.html#getResponseStatus">getResponseStatus</a>.</p></td>
         </tr>
 
     
@@ -170,7 +158,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line82">line 82</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line171">line 171</a>
     </li></ul></dd>
     
 
@@ -211,7 +199,7 @@
         <h3 class="subsection-title">Classes</h3>
 
         <dl>
-            <dt><a href="UnexpectedResponseStatus.html">UnexpectedResponseStatus</a></dt>
+            <dt><a href="UnknownResponseError.html">UnknownResponseError</a></dt>
             <dd></dd>
         </dl>
     
@@ -227,15 +215,13 @@
 
         
             
-<h4 class="name" id="body"><span class="type-signature"></span>body<span class="type-signature"> :string|Object</span></h4>
+<h4 class="name" id="response"><span class="type-signature"></span>response<span class="type-signature"> :*</span></h4>
 
 
 
 
 <div class="description">
-    <p>The body of the response.</p>
-<p>Depending on the response’s content type,
-this may be a string or a JSON-decoded object.</p>
+    <p>The unknown response passed into <a href="global.html#getResponseStatus">getResponseStatus</a>.</p>
 </div>
 
 
@@ -244,10 +230,7 @@ this may be a string or a JSON-decoded object.</p>
     <ul>
         <li>
             
-<span class="param-type">string</span>
-|
-
-<span class="param-type">Object</span>
+<span class="param-type">*</span>
 
 
         </li>
@@ -286,79 +269,7 @@ this may be a string or a JSON-decoded object.</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line112">line 112</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-        
-            
-<h4 class="name" id="status"><span class="type-signature"></span>status<span class="type-signature"> :number</span></h4>
-
-
-
-
-<div class="description">
-    <p>The unexpected status code received from the API.</p>
-</div>
-
-
-
-    <h5>Type:</h5>
-    <ul>
-        <li>
-            
-<span class="param-type">number</span>
-
-
-        </li>
-    </ul>
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line102">line 102</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line190">line 190</a>
     </li></ul></dd>
     
 
