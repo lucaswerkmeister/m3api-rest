@@ -5,6 +5,10 @@ This file records the changes in each m3api-rest release.
 The annotated tag (and GitLab release) for each version also lists the changes,
 but this file may sometimes contain later improvements (e.g. typo fixes).
 
+## next (not yet released)
+
+No changes yet.
+
 ## v0.1.0 (2026-01-01)
 
 Initial release, including:
