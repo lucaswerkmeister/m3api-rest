@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>m3api-rest: Home</title>
+
+    <script defer src="scripts/prettify/prettify.js"></script>
+    <script defer src="scripts/prettify/lang-css.js"></script>
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+    <link type="text/css" rel="stylesheet" href="version-warning.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <!-- VERSION-WARNING -->
+
+    <h1 class="page-title">Home</h1>
+
+    
+
+
+
+    
+
+
+    <h3> </h3>
+
+
+
+
+
+
+
+
+
+
+    
+
+
+
+
+    <section>
+        <article><h1>m3api-rest</h1>
+<p>m3api-rest is an extension package for <a href="https://www.npmjs.com/package/m3api">m3api</a>,
+allowing you to interact with the MediaWiki REST API.</p>
+<h2>Request functions</h2>
+<p>m3api-rest includes functions to make GET and POST requests that return JSON responses.
+Other request methods and response content types will be added in future versions.
+All functions start with the HTTP method name (in lowercase);
+for GET functions, this is directly followed by the response type (e.g. <code>getJson</code>),
+while other functions have the word “for” in between (e.g. <code>postForJson</code>)
+to clarify that this is the response content type, not the request content type.
+(The content type of the request body is specified by the type of the body passed into the function;
+currently <code>postForJson</code> only supports <code>URLSearchParams</code> bodies,
+but in future versions the same function will support multiple body types.)</p>
+<h3><code>getJson</code></h3>
+<p>Make a GET request for some JSON data.
+Usage examples:</p>
+<pre class="prettyprint source lang-js"><code>import Session from 'm3api';
+import { getJson, path } from 'm3api-rest';
+
+const session = new Session( 'en.wikipedia.org', {}, {
+	userAgent: 'm3api-rest-README-example',
+} );
+
+const title = 'Main page';
+const page = await getJson( session, path`/v1/page/${ title }` );
+console.log( page ); // { id: 217225, title: 'Main page', ... }
+</code></pre>
+<pre class="prettyprint source lang-js"><code>const searchResults = await getJson( session, '/v1/search/page', {
+	q: 'search query',
+	limit: 10,
+} );
+console.log( searchResults ); // { pages: [ { title: 'Web query', ... }, ... ] }
+</code></pre>
+<p>See also below for details on the different ways to specify parameters.</p>
+<h3><code>postForJson</code></h3>
+<p>Make a POST request that will return some JSON data.
+Usage example:</p>
+<pre class="prettyprint source lang-js"><code>const wikitext = '== ==\nThis is &lt;span id=id>bad&lt;/span> &lt;span id=id>wikitext&lt;/span>.';
+const lints = await postForJson( session, '/v1/transform/wikitext/to/lint', new URLSearchParams( {
+	wikitext,
+} ) );
+console.log( lints ); // [ { type: 'empty-heading', ... }, { type: 'duplicate-ids', ... } ]
+</code></pre>
+<p>(Note that some endpoints, including <code>POST /v1/page</code>, cannot be used yet,
+because m3api-rest can currently only send <code>application/x-www-form-urlencoded</code> request bodies
+but those endpoints require <code>application/json</code>.
+This will be fixed in a future version.)</p>
+<h2>Specifying parameters</h2>
+<p>REST API endpoints have different kinds of parameters.
+Many endpoints take parameters in the path, written like <code>/v1/page/{title}</code> (<code>title</code> is a parameter);
+many endpoints take query parameters after the path, like <code>/v1/search/page?q=search</code> (<code>q</code> is a parameter);
+and non-GET endpoints (POST etc.) take body parameters in several encodings.
+m3api-rest supports several ways to specify these parameters.</p>
+<h3>Path parameters</h3>
+<p>Path parameters can be specified using a tagged template literal (string template)
+using the <code>path</code> function,
+which will encode the parameter value if necessary.</p>
+<pre class="prettyprint source lang-js"><code>import { path } from 'm3api-rest';
+
+const title = 'AC/DC';
+const url = path`/v1/page/${ title }`; // /v1/page/AC%2FDC
+</code></pre>
+<p>To use it, take the endpoint URL and change <code>{parameters}</code> to <code>${substitutions}</code>
+(or <code>${ substitutions }</code> with spaces, depending on your code style).</p>
+<p>Alternatively, you can pass the original endpoint URL into the request function unmodified,
+and the request function will pull the parameters out of the params passed into it.
+For example:</p>
+<pre class="prettyprint source lang-js"><code>const page = await getJson( session, '/v1/page/{title}', {
+	// this object contains the params for the request
+	title: 'AC/DC', // this is a path parameter
+	redirect: true, // this is a query parameter, see below
+} );
+// makes a request to /v1/page/AC%2FDC?redirect=true
+</code></pre>
+<h3>Query parameters</h3>
+<p>The GET request functions, e.g. <code>getJson</code>, take an object with query parameters after the path:</p>
+<pre class="prettyprint source lang-js"><code>const searchResults = await getJson( session, '/v1/search/page', {
+	q: 'search query',
+	limit: 10,
+} );
+// makes a request to /v1/search/page?q=search%20query&limit=10
+</code></pre>
+<p>As mentioned above, you can also specify path parameters here.</p>
+<p>Request functions for other methods don’t take an object with query parameters,
+since they already take a request body.
+Instead, if the endpoint still takes query parameters (which is uncommon, but possible),
+you should pass them into the <code>path</code> as an object:</p>
+<pre class="prettyprint source lang-js"><code>const params = { fakeQueryParam: 'abc' };
+await postForJson( path`/v0/fake/endpoint?${ params }`, new URLSearchParams( {
+	fakeBodyParam: 'xyz',
+} ) );
+// makes a request to /v0/fake/endpoint?fakeQueryParam=abc with fakeBodyParam=xyz in the body
+</code></pre>
+<p>This is also possible for GET requests, but you should probably prefer passing the query parameters separately there.</p>
+<h3>Body parameters</h3>
+<p>The non-GET request functions, e.g. <code>postForJson</code>, take a value for the body after the path.
+The type of the value encodes the content type with which the body will be sent.
+Currently, the only supported type is <code>URLSearchParams</code>,
+which will send the body as <code>application/x-www-form-urlencoded</code>;
+support for other body types
+(<code>FormData</code> for <code>multipart/form-data</code>, plain object for <code>application/json</code>)
+will be added in a future version.</p>
+<pre class="prettyprint source lang-js"><code>const lints = await postForJson( session, '/v1/transform/wikitext/to/lint', new URLSearchParams( {
+	wikitext: 'some wikitext',
+} ) );
+/// makes a request to /v1/transform/wikitext/to/lint with wikitext=some%20wikitext
+</code></pre>
+<p>As mentioned above, you can also specify path parameters here.</p>
+<h2>License</h2>
+<p>Published under the <a href="https://spdx.org/licenses/ISC.html">ISC License</a>.
+By contributing to this software,
+you agree to publish your contribution under the same license.</p></article>
+    </section>
+
+
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="InvalidPathParams.html">InvalidPathParams</a></li><li><a href="InvalidResponseBody.html">InvalidResponseBody</a></li><li><a href="RestApiClientError.html">RestApiClientError</a></li><li><a href="RestApiServerError.html">RestApiServerError</a></li><li><a href="UnexpectedResponseStatus.html">UnexpectedResponseStatus</a></li><li><a href="UnknownResponseError.html">UnknownResponseError</a></li></ul><h3>Global</h3><ul><li><a href="global.html#getJson">getJson</a></li><li><a href="global.html#getResponseStatus">getResponseStatus</a></li><li><a href="global.html#path">path</a></li><li><a href="global.html#postForJson">postForJson</a></li><li><a href="global.html#splitUrlForInternalInterface">splitUrlForInternalInterface</a></li><li><a href="global.html#substitutePathParams">substitutePathParams</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a>
+</footer>
+
+<script>document.addEventListener('DOMContentLoaded', function () { prettyPrint(); });</script>
+<script async src="scripts/linenumber.js"></script>
+</body>
+</html>
