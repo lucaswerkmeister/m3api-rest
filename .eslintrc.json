@@ -17,7 +17,11 @@
 		"no-shadow": "off",
 		"prefer-const": [ "error", { "destructuring": "all" } ],
 		"jsdoc/no-undefined-types": [ "error", {
-			"definedTypes": [ "Options", "Session" ]
+			"definedTypes": [
+				"Options",
+				"RequestInit",
+				"Session"
+			]
 		} ]
 	},
 	"overrides": [

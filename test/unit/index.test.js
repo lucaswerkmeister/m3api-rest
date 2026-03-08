@@ -5,6 +5,7 @@ import {
 	InvalidPathParams,
 	InvalidResponseBody,
 	UnexpectedResponseStatus,
+	IncompatibleResponseType,
 	UnknownResponseError,
 	RestApiClientError,
 	RestApiServerError,
@@ -18,6 +19,32 @@ import chaiAsPromised from 'chai-as-promised';
 import chaiString from 'chai-string';
 use( chaiAsPromised );
 use( chaiString );
+
+/**
+ * Get the headers of the given options as a plain object,
+ * for more convenient assertions.
+ *
+ * @param {RequestInit} options
+ * @return {Object} All keys are lowercase.
+ */
+function getHeaders( options ) {
+	return Object.fromEntries( new Headers( options.headers ).entries() );
+}
+
+/**
+ * Conveniently construct a URL for assertions.
+ *
+ * @param {string} base
+ * @param {Object|null} params
+ * @return {URL}
+ */
+function url( base, params = null ) {
+	const url = new URL( base );
+	if ( params !== null ) {
+		url.search = new URLSearchParams( params );
+	}
+	return url;
+}
 
 describe( 'path', () => {
 
@@ -82,19 +109,16 @@ describe( 'getJson', () => {
 		let called = false;
 		const session = new class TestSession extends Session {
 
-			async internalGet( url, params, headers ) {
-				expect( url ).to.equal( 'https://wiki.test/testw/rest.php/foo' );
-				expect( params ).to.eql( {} );
+			async fetch( resource, options ) {
+				expect( resource ).to.eql( url( 'https://wiki.test/testw/rest.php/foo' ) );
+				expect( options ).to.have.property( 'method', 'GET' );
+				const headers = getHeaders( options );
 				expect( headers ).to.have.all.keys( 'accept', 'user-agent' );
 				expect( headers.accept ).to.equal( 'application/json' );
 				expect( headers[ 'user-agent' ] ).to.startWith( 'test-user-agent m3api/' );
 				expect( called ).to.be.false;
 				called = true;
-				return {
-					status: 200,
-					headers: {},
-					body: { the: 'body' },
-				};
+				return Response.json( { the: 'body' } );
 			}
 
 		}( 'https://wiki.test/testw/api.php' );
@@ -111,17 +135,12 @@ describe( 'getJson', () => {
 	it( 'merges request params from the URL and function parameters', async () => {
 		const session = new class TestSession extends Session {
 
-			async internalGet( url, params ) {
-				expect( url ).to.equal( 'https://wiki.test/testw/rest.php/foo' );
-				expect( params ).to.eql( {
+			async fetch( resource ) {
+				expect( resource ).to.eql( url( 'https://wiki.test/testw/rest.php/foo', {
 					pathparam: 'path param',
 					functionparam: 'function param',
-				} );
-				return {
-					status: 200,
-					headers: {},
-					body: { the: 'body' },
-				};
+				} ) );
+				return Response.json( { the: 'body' } );
 			}
 
 		}( 'https://wiki.test/testw/api.php', {}, { userAgent: 'test-user-agent' } );
@@ -137,19 +156,17 @@ describe( 'getJson', () => {
 		let called = false;
 		const session = new class TestSession extends Session {
 
-			async internalGet( url, params, headers ) {
-				expect( url ).to.equal( 'https://wiki.test/testw/rest.php/list' );
-				expect( params ).to.eql( {} );
+			async fetch( resource, options ) {
+				expect( resource ).to.eql( url( 'https://wiki.test/testw/rest.php/list' ) );
+				const headers = getHeaders( options );
 				expect( headers ).to.have.all.keys( 'accept', 'user-agent' );
 				expect( headers.accept ).to.equal( 'application/json' );
 				expect( headers[ 'user-agent' ] ).to.startWith( 'test-user-agent m3api/' );
 				expect( called ).to.be.false;
 				called = true;
-				return {
+				return Response.json( [ { index: 1 }, { index: 2 } ], {
 					status: 299,
-					headers: {},
-					body: [ { index: 1 }, { index: 2 } ],
-				};
+				} );
 			}
 
 		}( 'https://wiki.test/testw/api.php', {}, {
@@ -166,13 +183,10 @@ describe( 'getJson', () => {
 	it( 'sends an Authorization header if specified', async () => {
 		const session = new class TestSession extends Session {
 
-			async internalGet( url, params, headers ) {
+			async fetch( resource, options ) {
+				const headers = getHeaders( options );
 				expect( headers ).to.have.property( 'authorization', 'Bearer test access token' );
-				return {
-					status: 200,
-					headers: {},
-					body: { the: 'body' },
-				};
+				return Response.json( { the: 'body' } );
 			}
 
 		}( 'wiki.test', {}, {
@@ -190,17 +204,12 @@ describe( 'getJson', () => {
 		it( 'pulls path params out of the params', async () => {
 			const session = new class TestSession extends Session {
 
-				async internalGet( url, params ) {
-					expect( url ).to.equal( 'https://wiki.test/w/rest.php/foo/BAR/baz/QUX' );
-					expect( params ).to.eql( {
+				async fetch( resource ) {
+					expect( resource ).to.eql( url( 'https://wiki.test/w/rest.php/foo/BAR/baz/QUX', {
 						foo: 'FOO',
 						baz: 'BAZ',
-					} );
-					return {
-						status: 200,
-						headers: {},
-						body: { the: 'body' },
-					};
+					} ) );
+					return Response.json( { the: 'body' } );
 				}
 
 			}( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
@@ -226,14 +235,9 @@ describe( 'getJson', () => {
 		it( 'URI-encodes path params', async () => {
 			const session = new class TestSession extends Session {
 
-				async internalGet( url, params ) {
-					expect( url ).to.equal( 'https://wiki.test/w/rest.php/foo/BAR%2FBAZ/qux' );
-					expect( params ).to.eql( {} );
-					return {
-						status: 200,
-						headers: {},
-						body: { the: 'body' },
-					};
+				async fetch( resource ) {
+					expect( resource ).to.eql( url( 'https://wiki.test/w/rest.php/foo/BAR%2FBAZ/qux' ) );
+					return Response.json( { the: 'body' } );
 				}
 
 			}( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
@@ -269,12 +273,8 @@ describe( 'getJson', () => {
 				this.status = status;
 			}
 
-			async internalGet() {
-				return {
-					status: this.status,
-					headers: {},
-					body,
-				};
+			async fetch() {
+				return Response.json( body, { status: this.status } );
 			}
 
 		}
@@ -287,21 +287,7 @@ describe( 'getJson', () => {
 
 					await expect( getJson( session, '/foo' ) )
 						.to.be.rejectedWith( RestApiServerError )
-						.and.eventually.include( { status, body } );
-				} );
-			}
-
-		} );
-
-		describe( 'throws RestApiServerError for (invalid)', () => {
-
-			for ( const status of [ 0, 99, 600, 599.9, 2000, 'not a number' ] ) {
-				it( JSON.stringify( status ), async () => {
-					const session = new StatusReturningTestSession( status );
-
-					await expect( getJson( session, '/foo' ) )
-						.to.be.rejectedWith( RestApiServerError )
-						.and.eventually.include( { status, body } );
+						.and.eventually.deep.include( { status, body } );
 				} );
 			}
 
@@ -315,7 +301,7 @@ describe( 'getJson', () => {
 
 					await expect( getJson( session, '/foo' ) )
 						.to.be.rejectedWith( RestApiClientError )
-						.and.eventually.include( { status, body } );
+						.and.eventually.deep.include( { status, body } );
 				} );
 			}
 
@@ -323,13 +309,13 @@ describe( 'getJson', () => {
 
 		describe( 'throws UnexpectedResponseStatus for', () => {
 
-			for ( const status of [ 100, 103, 199, 300, 302, 399 ] ) {
+			for ( const status of [ 300, 302, 399 ] ) {
 				it( JSON.stringify( status ), async () => {
 					const session = new StatusReturningTestSession( status );
 
 					await expect( getJson( session, '/foo' ) )
 						.to.be.rejectedWith( UnexpectedResponseStatus )
-						.and.eventually.include( { status, body } );
+						.and.eventually.deep.include( { status, body } );
 				} );
 			}
 
@@ -341,17 +327,14 @@ describe( 'getJson', () => {
 
 		class BodyReturningTestSession extends Session {
 
-			constructor( body ) {
+			constructor( body, options ) {
 				super( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
 				this.body = body;
+				this.options = options;
 			}
 
-			async internalGet() {
-				return {
-					status: 200,
-					headers: {},
-					body: this.body,
-				};
+			async fetch() {
+				return Response.json( this.body, this.options );
 			}
 
 		}
@@ -370,6 +353,22 @@ describe( 'getJson', () => {
 
 		} );
 
+		it( 'throws IncompatibleResponseType for text/plain', async () => {
+			const session = new BodyReturningTestSession( {}, {
+				headers: {
+					'Content-Type': 'text/plain',
+				},
+			} );
+
+			await expect( getJson( session, '/foo' ) )
+				.to.be.rejectedWith( IncompatibleResponseType )
+				.and.eventually.include( {
+					expectedType: 'application/json',
+					actualType: 'text/plain',
+					body: '{}',
+				} );
+		} );
+
 	} );
 
 } );
@@ -380,31 +379,30 @@ describe( 'postForJson', () => {
 		let called = false;
 		const session = new class TestSession extends Session {
 
-			async internalPost( url, urlParams, bodyParams, headers ) {
-				expect( url ).to.equal( 'https://wiki.test/testw/rest.php/bar' );
-				expect( urlParams ).to.eql( {} );
-				expect( bodyParams ).to.eql( {
-					param1: 'abc',
-					param2: 'xyz',
-				} );
+			async fetch( resource, options ) {
+				expect( resource ).to.eql( url( 'https://wiki.test/testw/rest.php/bar' ) );
+				expect( options ).to.have.property( 'method', 'POST' );
+				const headers = getHeaders( options );
 				expect( headers ).to.have.all.keys( /* 'accept', */ 'user-agent' );
 				// expect( headers.accept ).to.equal( 'application/json' ); // T412610
 				expect( headers[ 'user-agent' ] ).to.startWith( 'test-user-agent m3api/' );
+				expect( options.body ).to.eql( new URLSearchParams( [
+					[ 'param1', 'abc' ],
+					[ 'param1', 'def' ],
+					[ 'param2', 'xyz' ],
+				] ) );
 				expect( called ).to.be.false;
 				called = true;
-				return {
-					status: 200,
-					headers: {},
-					body: { the: 'body' },
-				};
+				return Response.json( { the: 'body' } );
 			}
 
 		}( 'https://wiki.test/testw/api.php' );
 
-		const response = await postForJson( session, '/bar', new URLSearchParams( {
-			param1: 'abc',
-			param2: 'xyz',
-		} ), {
+		const response = await postForJson( session, '/bar', new URLSearchParams( [
+			[ 'param1', 'abc' ],
+			[ 'param1', 'def' ],
+			[ 'param2', 'xyz' ],
+		] ), {
 			userAgent: 'test-user-agent',
 		} );
 
@@ -415,13 +413,10 @@ describe( 'postForJson', () => {
 	it( 'sends an Authorization header if specified', async () => {
 		const session = new class TestSession extends Session {
 
-			async internalPost( url, urlParams, bodyParams, headers ) {
+			async fetch( resource, options ) {
+				const headers = getHeaders( options );
 				expect( headers ).to.have.property( 'authorization', 'Bearer test access token' );
-				return {
-					status: 200,
-					headers: {},
-					body: { the: 'body' },
-				};
+				return Response.json( { the: 'body' } );
 			}
 
 		}( 'wiki.test', {}, {
@@ -434,25 +429,12 @@ describe( 'postForJson', () => {
 		expect( response ).to.eql( { the: 'body' } );
 	} );
 
-	it( 'throws an error if the same param is given multiple times (instead of silently doing the wrong thing)', async () => {
-		const session = new Session( 'wiki.test' );
-
-		await expect( postForJson( session, '/', new URLSearchParams( [
-			[ 'param', 'x' ],
-			[ 'param', 'y' ],
-		] ) ) ).to.be.rejectedWith( Error );
-	} );
-
 	it( 'throws a RestApiClientError for 404', async () => {
 		// the rest of checkResponseStatus() is tested in getJson() above
 		const session = new class StatusReturningTestSession extends Session {
 
-			async internalPost() {
-				return {
-					status: 404,
-					headers: {},
-					body: { the: 'body' },
-				};
+			async fetch() {
+				return Response.json( { the: 'body' }, { status: 404 } );
 			}
 
 		}( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
@@ -470,18 +452,13 @@ describe( 'postForJson', () => {
 		it( 'pulls path params out of the params', async () => {
 			const session = new class TestSession extends Session {
 
-				async internalPost( url, urlParams, bodyParams ) {
-					expect( url ).to.equal( 'https://wiki.test/w/rest.php/foo/BAR/baz/QUX' );
-					expect( urlParams ).to.eql( {} );
-					expect( bodyParams ).to.eql( {
+				async fetch( resource, options ) {
+					expect( resource ).to.eql( url( 'https://wiki.test/w/rest.php/foo/BAR/baz/QUX' ) );
+					expect( options.body ).to.eql( new URLSearchParams( {
 						foo: 'FOO',
 						baz: 'BAZ',
-					} );
-					return {
-						status: 200,
-						headers: {},
-						body: { the: 'body' },
-					};
+					} ) );
+					return Response.json( { the: 'body' } );
 				}
 
 			}( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
@@ -507,15 +484,10 @@ describe( 'postForJson', () => {
 		it( 'URI-encodes path params', async () => {
 			const session = new class TestSession extends Session {
 
-				async internalPost( url, urlParams, bodyParams ) {
-					expect( url ).to.equal( 'https://wiki.test/w/rest.php/foo/BAR%2FBAZ/qux' );
-					expect( urlParams ).to.eql( {} );
-					expect( bodyParams ).to.eql( {} );
-					return {
-						status: 200,
-						headers: {},
-						body: { the: 'body' },
-					};
+				async fetch( resource, options ) {
+					expect( resource ).to.eql( url( 'https://wiki.test/w/rest.php/foo/BAR%2FBAZ/qux' ) );
+					expect( options.body ).to.eql( new URLSearchParams() );
+					return Response.json( { the: 'body' } );
 				}
 
 			}( 'wiki.test', {}, { userAgent: 'test-user-agent' } );

@@ -7,7 +7,12 @@ but this file may sometimes contain later improvements (e.g. typo fixes).
 
 ## next (not yet released)
 
-No changes yet.
+- Updated the library for the new network interface of m3api v1.1.0,
+  so that it can be used together with that version.
+  (This also unlocks many new features in m3api-rest,
+  which will be implemented in a subsequent release.)
+- Introduced a new error type, `IncompatibleResponseType`,
+  thrown if the server responds with an incompatible response type.
 
 ## v0.1.0 (2026-01-01)
 
