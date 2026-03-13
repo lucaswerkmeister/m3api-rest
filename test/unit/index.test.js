@@ -14,6 +14,7 @@ import {
 	path,
 	postForJson,
 } from '../../index.js';
+import { File } from 'buffer'; // only available globally since Node 20
 import { expect, use } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 import chaiString from 'chai-string';
@@ -447,9 +448,101 @@ describe( 'postForJson', () => {
 			} );
 	} );
 
+	describe( 'encodeBody', () => {
+
+		it( 'supports JSON bodies', async () => {
+			let called = false;
+			const session = new class TestSession extends Session {
+
+				async fetch( resource, options ) {
+					const headers = getHeaders( options );
+					expect( headers ).to.have.property( 'content-type', 'application/json' );
+					expect( options.body ).to.equal( '{"param1":"abc","param2":"xyz"}' );
+					called = true;
+					return Response.json( {} );
+				}
+
+			}( 'wiki.test' );
+
+			await postForJson( session, '/bar', {
+				param1: 'abc',
+				param2: 'xyz',
+			}, {
+				userAgent: 'test-user-agent',
+			} );
+
+			expect( called ).to.be.true;
+		} );
+
+		it( 'supports URLSearchParams bodies', async () => {
+			let called = false;
+			const session = new class TestSession extends Session {
+
+				async fetch( resource, options ) {
+					expect( options.body ).to.eql( new URLSearchParams( [
+						[ 'param1', 'abc' ],
+						[ 'param1', 'def' ],
+						[ 'param2', 'xyz' ],
+					] ) );
+					expect( called ).to.be.false;
+					called = true;
+					return Response.json( { the: 'body' } );
+				}
+
+			}( 'wiki.test' );
+
+			await postForJson( session, '/bar', new URLSearchParams( [
+				[ 'param1', 'abc' ],
+				[ 'param1', 'def' ],
+				[ 'param2', 'xyz' ],
+			] ), {
+				userAgent: 'test-user-agent',
+			} );
+
+			expect( called ).to.be.true;
+		} );
+
+		it( 'supports FormData bodies', async () => {
+			const blob = new Blob( [ 'a blob' ], { type: 'text/blob+plain' } );
+			const file = new File( [ 'a file' ], 'file.txt', { type: 'text/plain' } );
+			let called = false;
+			const session = new class TestSession extends Session {
+
+				async fetch( resource, options ) {
+					const { body } = options;
+					expect( body ).to.be.an.instanceof( FormData );
+					expect( [ ...body.keys() ] ).to.eql( [
+						'string',
+						'blob',
+						'file',
+					] );
+					expect( body.getAll( 'string' ) ).to.eql( [ 'a string' ] );
+					// FormData turns the Blob into a File so we cannot assert .eql( [ blob ] )
+					expect( body.getAll( 'blob' ) ).to.have.length( 1 );
+					expect( body.get( 'blob' ) ).to.have.property( 'type', 'text/blob+plain' );
+					expect( body.getAll( 'file' ) ).to.eql( [ file ] );
+					called = true;
+					return Response.json( {} );
+				}
+
+			}( 'wiki.test' );
+
+			const body = new FormData();
+			body.set( 'string', 'a string' );
+			body.set( 'blob', blob );
+			body.set( 'file', file );
+			await postForJson( session, '/baz', body, {
+				userAgent: 'test-user-agent',
+			} );
+
+			expect( called ).to.be.true;
+		} );
+
+	} );
+
 	describe( 'substitutePathParams', () => {
 
-		it( 'pulls path params out of the params', async () => {
+		it( 'pulls path params out of URLSearchParams params', async () => {
 			const session = new class TestSession extends Session {
 
 				async fetch( resource, options ) {
@@ -477,6 +570,38 @@ describe( 'postForJson', () => {
 				[ 'foo', 'FOO' ],
 				[ 'bar', 'BAR' ],
 				[ 'baz', 'BAZ' ],
+				[ 'qux', 'QUX' ],
+			] );
+		} );
+
+		it( 'pulls path params out of FormData params', async () => {
+			const file = new File( [ 'BAZ' ], 'file.txt', { type: 'text/plain' } );
+			const session = new class TestSession extends Session {
+
+				async fetch( resource, options ) {
+					expect( resource ).to.eql( url( 'https://wiki.test/w/rest.php/foo/BAR/baz/QUX' ) );
+					const expectedBody = new FormData();
+					expectedBody.set( 'foo', 'FOO' );
+					expectedBody.set( 'baz', file );
+					expect( options.body ).to.eql( expectedBody );
+					return Response.json( { the: 'body' } );
+				}
+
+			}( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
+
+			const path = '/foo/{bar}/baz/{qux}';
+			const params = new FormData();
+			params.set( 'foo', 'FOO' );
+			params.set( 'bar', 'BAR' );
+			params.set( 'baz', file );
+			params.set( 'qux', 'QUX' );
+			const response = await postForJson( session, path, params );
+
+			expect( response ).to.eql( { the: 'body' } );
+			expect( [ ...params.entries() ], 'original params (unmodified)' ).to.eql( [
+				[ 'foo', 'FOO' ],
+				[ 'bar', 'BAR' ],
+				[ 'baz', file ],
 				[ 'qux', 'QUX' ],
 			] );
 		} );
@@ -524,6 +649,23 @@ describe( 'postForJson', () => {
 				.to.be.rejectedWith( InvalidPathParams, 'Ambiguous path param {qux}' )
 				.and.eventually.include( { path, paramName: 'qux', params } );
 		} );
+
+		for ( const param of [
+			new Blob( [ 'a blob' ], { type: 'text/plain' } ),
+			new File( [ 'a file' ], 'file.txt', { type: 'text/plain' } ),
+		] ) {
+			it( `throws InvalidPathParams for ${ param.constructor.name } param`, async () => {
+				const session = new Session( 'wiki.test' );
+
+				const path = '/foo/{bar}';
+				const params = new FormData();
+				params.set( 'bar', param );
+
+				await expect( postForJson( session, path, params ) )
+					.to.be.rejectedWith( InvalidPathParams, 'Path param {bar} cannot be a Blob or File' )
+					.and.eventually.include( { path, paramName: 'bar', params } );
+			} );
+		}
 
 	} );
 

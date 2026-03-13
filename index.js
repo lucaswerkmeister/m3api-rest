@@ -439,7 +439,7 @@ export function path( strings, ...values ) {
  *
  * @private
  * @param {string} path The path with optional `{param}` expressions.
- * @param {Object|URLSearchParams} params The input params. Not modified.
+ * @param {Object|URLSearchParams|FormData} params The input params. Not modified.
  * @return {Object} The potentially modified path and params.
  */
 function substitutePathParams( path, params ) {
@@ -463,6 +463,38 @@ function substitutePathParams( path, params ) {
 			}
 			copiedParams.delete( paramName );
 			return encodeURIComponent( values[ 0 ] );
+		} else if ( params instanceof FormData ) {
+			if ( copiedParams === null ) {
+				copiedParams = new FormData();
+				for ( const [ name, value ] of params.entries() ) {
+					copiedParams.append( name, value );
+				}
+			}
+			const values = copiedParams.getAll( paramName );
+			if ( values.length !== 1 ) {
+				throw new InvalidPathParams(
+					values.length === 0 ?
+						`Unspecified path param ${ match }` :
+						`Ambiguous path param ${ match }`,
+					path,
+					paramName,
+					params,
+				);
+			}
+			copiedParams.delete( paramName );
+			const value = values[ 0 ];
+			if ( value instanceof Blob ) {
+				// in practice, value will almost always be a File here,
+				// as FormData will turn any Blob into a File (except on old Node versions),
+				// hence the unspecific “Blob or File” in the message
+				throw new InvalidPathParams(
+					`Path param ${ match } cannot be a Blob or File`,
+					path,
+					paramName,
+					params,
+				);
+			}
+			return encodeURIComponent( value );
 		} else {
 			if ( copiedParams === null ) {
 				copiedParams = { ...params };
@@ -516,16 +548,35 @@ export async function getJson( session, path, params, options = {} ) {
 }
 
 /**
+ * Encode a body for the request to the server.
+ *
+ * @param {Object|URLSearchParams|FormData} body
+ * @return {RequestInit} To be mixed into the `fetch()` options.
+ */
+function encodeBody( body ) {
+	if ( body instanceof URLSearchParams || body instanceof FormData ) {
+		return { body };
+	} else {
+		return {
+			body: JSON.stringify( body ),
+			headers: {
+				'Content-Type': 'application/json',
+			},
+		};
+	}
+}
+
+/**
  * Make a POST request to a REST API endpoint and return the JSON-decoded body.
  *
  * @param {Session} session The m3api session to use for this request.
  * @param {string} path The resource path, e.g. `/v1/page`.
  * Does not include the domain, script path, or `rest.php` endpoint.
  * Use the {@link path} tag function to build the path.
- * @param {URLSearchParams} params The request body.
- * Will be sent using the `application/x-www-form-urlencoded` content type.
- * (Future versions of this library will support additional request body content types,
- * but that requires changes to m3api first.)
+ * @param {Object|URLSearchParams|FormData} params The request body.
+ * An Object will be sent using the `application/json` content type;
+ * URLSearchParams will be sent using the `application/x-www-form-urlencoded` content type;
+ * FormData will be sent using the `multipart/form-data` content type.
  * You may also include parameters for the path here.
  * @param {Options} [options] Request options.
  * @return {Object|Array} The body of the API response, JSON-decoded.
@@ -534,15 +585,16 @@ export async function postForJson( session, path, params, options = {} ) {
 	( { path, params } = substitutePathParams( path, params ) );
 	const restUrl = session.apiUrl.replace( /api\.php$/, 'rest.php' );
 	const url = new URL( restUrl + path );
-	const headers = {
-		// accept: 'application/json', // skip this for now due to T412610
-		...session.getRequestHeaders( options ),
-	};
-	const response = await session.fetch( url, {
+	const fetchOptions = {
 		method: 'POST',
-		headers,
-		body: params,
-	} );
+		...encodeBody( params ),
+	};
+	fetchOptions.headers = new Headers( fetchOptions.headers );
+	// fetchOptions.headers.set( 'accept', 'application/json' ); // skip this for now due to T412610
+	for ( const [ name, value ] of Object.entries( session.getRequestHeaders( options ) ) ) {
+		fetchOptions.headers.set( name, value );
+	}
+	const response = await session.fetch( url, fetchOptions );
 	await checkResponseStatus( response );
 	return await getResponseJson( response );
 }

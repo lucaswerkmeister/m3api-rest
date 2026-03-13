@@ -76,15 +76,23 @@ describe( 'postForJson', function () {
 
 	this.timeout( 60000 );
 
-	it( 'converts wikitext into lints', async () => {
-		const session = new Session( 'en.wikipedia.org', {}, { userAgent } );
+	for ( const [ bodyType, body ] of [
+		[ 'JSON object', { wikitext: '' } ],
+		[ 'URLSearchParams', new URLSearchParams( { wikitext: '' } ) ],
+		[ 'FormData', ( () => {
+			const body = new FormData();
+			body.set( 'wikitext', '' );
+			return body;
+		} )() ],
+	] ) {
+		it( `converts wikitext into lints (${ bodyType } body)`, async () => {
+			const session = new Session( 'en.wikipedia.org', {}, { userAgent } );
 
-		const response = await postForJson( session, path`/v1/transform/wikitext/to/lint`, new URLSearchParams( {
-			wikitext: '',
-		} ) );
+			const response = await postForJson( session, path`/v1/transform/wikitext/to/lint`, body );
 
-		expect( response ).to.eql( [] );
-		expect( getResponseStatus( response ) ).to.equal( 200 );
-	} );
+			expect( response ).to.eql( [] );
+			expect( getResponseStatus( response ) ).to.equal( 200 );
+		} );
+	}
 
 } );
