@@ -447,7 +447,7 @@ describe( 'postForJson', () => {
 		// the rest of checkResponseStatus() is tested in getJson() above
 		const session = new class StatusReturningTestSession extends Session {
 
-			async internalGet() {
+			async internalPost() {
 				return {
 					status: 404,
 					headers: {},
@@ -457,7 +457,7 @@ describe( 'postForJson', () => {
 
 		}( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
 
-		await expect( getJson( session, '/foo' ) )
+		await expect( postForJson( session, '/foo', new URLSearchParams() ) )
 			.to.be.rejectedWith( RestApiClientError )
 			.and.eventually.deep.include( {
 				status: 404,
@@ -533,7 +533,7 @@ describe( 'postForJson', () => {
 			const path = '/foo/{bar}/baz/{qux}';
 			const params = new URLSearchParams( [ [ 'bar', 'BAR' ] ] );
 
-			await expect( getJson( session, path, params ) )
+			await expect( postForJson( session, path, params ) )
 				.to.be.rejectedWith( InvalidPathParams, 'Unspecified path param {qux}' )
 				.and.eventually.include( { path, paramName: 'qux', params } );
 		} );
@@ -548,7 +548,7 @@ describe( 'postForJson', () => {
 				[ 'qux', 'QUY' ],
 			] );
 
-			await expect( getJson( session, path, params ) )
+			await expect( postForJson( session, path, params ) )
 				.to.be.rejectedWith( InvalidPathParams, 'Ambiguous path param {qux}' )
 				.and.eventually.include( { path, paramName: 'qux', params } );
 		} );
