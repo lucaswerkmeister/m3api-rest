@@ -76,7 +76,7 @@ describe( 'postForJson', function () {
 
 	this.timeout( 60000 );
 
-	it( 'converts HTML into wikitext', async () => {
+	it( 'converts wikitext into lints', async () => {
 		const session = new Session( 'en.wikipedia.org', {}, { userAgent } );
 
 		const response = await postForJson( session, path`/v1/transform/wikitext/to/lint`, new URLSearchParams( {
