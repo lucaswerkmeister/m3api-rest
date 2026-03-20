@@ -14,8 +14,10 @@
 	},
 	"rules": {
 		"comma-dangle": [ "error", "always-multiline" ],
+		"no-new-wrappers": "off",
 		"no-shadow": "off",
 		"prefer-const": [ "error", { "destructuring": "all" } ],
+		"jsdoc/check-types": "off",
 		"jsdoc/no-undefined-types": [ "error", {
 			"definedTypes": [
 				"Options",

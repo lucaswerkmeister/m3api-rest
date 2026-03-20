@@ -7,10 +7,13 @@ import {
 	getResponseStatus,
 	path,
 	postForJson,
+	postForText,
 } from '../../index.js';
+import chaiBox from '../helper/box.js';
 import { expect, use } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 use( chaiAsPromised );
+use( chaiBox );
 
 const userAgent = 'm3api-rest-integration-tests (https://phabricator.wikimedia.org/tag/m3api/)';
 
@@ -91,6 +94,31 @@ describe( 'postForJson', function () {
 			const response = await postForJson( session, path`/v1/transform/wikitext/to/lint`, body );
 
 			expect( response ).to.eql( [] );
+			expect( getResponseStatus( response ) ).to.equal( 200 );
+		} );
+	}
+
+} );
+
+describe( 'postForText', function () {
+
+	this.timeout( 60000 );
+
+	for ( const [ bodyType, body ] of [
+		[ 'JSON object', { html: '<i>Hello, world!</i>' } ],
+		[ 'URLSearchParams', new URLSearchParams( { html: '<i>Hello, world!</i>' } ) ],
+		[ 'FormData', ( () => {
+			const body = new FormData();
+			body.set( 'html', '<i>Hello, world!</i>' );
+			return body;
+		} )() ],
+	] ) {
+		it( `converts HTML into wikitext (${ bodyType } body)`, async () => {
+			const session = new Session( 'en.wikipedia.org', {}, { userAgent } );
+
+			const response = await postForText( session, path`/v1/transform/html/to/wikitext`, body );
+
+			expect( response ).to.box( "''Hello, world!''" );
 			expect( getResponseStatus( response ) ).to.equal( 200 );
 		} );
 	}

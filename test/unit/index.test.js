@@ -11,14 +11,18 @@ import {
 	RestApiServerError,
 	getJson,
 	getResponseStatus,
+	getText,
 	path,
 	postForJson,
+	postForText,
 } from '../../index.js';
+import chaiBox from '../helper/box.js';
 import { File } from 'buffer'; // only available globally since Node 20
 import { expect, use } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 import chaiString from 'chai-string';
 use( chaiAsPromised );
+use( chaiBox );
 use( chaiString );
 
 /**
@@ -402,6 +406,117 @@ describe( 'getJson', () => {
 
 } );
 
+describe( 'getText', () => {
+
+	it( 'makes a request with the right URL and headers, registers the status and returns the body', async () => {
+		let called = false;
+		const session = new class TestSession extends Session {
+
+			async fetch( resource, options ) {
+				expect( resource ).to.eql( url( 'https://wiki.test/testw/rest.php/foo' ) );
+				expect( options ).to.have.property( 'method', 'GET' );
+				const headers = getHeaders( options );
+				expect( headers ).to.have.all.keys( 'accept', 'user-agent' );
+				expect( headers.accept ).to.equal( 'text/plain' );
+				expect( headers[ 'user-agent' ] ).to.startWith( 'test-user-agent m3api/' );
+				expect( called ).to.be.false;
+				called = true;
+				return new Response( 'the body', {
+					headers: {
+						'Content-Type': 'text/plain',
+					},
+				} );
+			}
+
+		}( 'https://wiki.test/testw/api.php' );
+
+		const response = await getText( session, '/foo', {}, {
+			userAgent: 'test-user-agent',
+		} );
+
+		expect( called ).to.be.true;
+		expect( response ).to.box( 'the body' );
+		expect( getResponseStatus( response ) ).to.equal( 200 );
+	} );
+
+	it( 'throws a RestApiClientError for 404', async () => {
+		// the rest of checkResponseStatus() is tested in getJson() above
+		const session = new class StatusReturningTestSession extends Session {
+
+			async fetch() {
+				return new Response( 'the body', { status: 404 } );
+			}
+
+		}( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
+
+		await expect( getText( session, '/foo' ) )
+			.to.be.rejectedWith( RestApiClientError )
+			.and.eventually.deep.include( {
+				status: 404,
+				body: 'the body',
+			} );
+	} );
+
+	describe( 'getResponseMimeType, isResponseText, getResponseText', () => {
+
+		class BodyReturningTestSession extends Session {
+
+			constructor( body, options ) {
+				super( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
+				this.body = body;
+				this.options = options;
+			}
+
+			async fetch() {
+				return new Response( this.body, this.options );
+			}
+
+		}
+
+		it( 'allows text/custom+plain', async () => {
+			const session = new BodyReturningTestSession( 'the body', {
+				headers: {
+					'Content-Type': 'text/custom+plain',
+				},
+			} );
+
+			const response = await getText( session, '/foo' );
+
+			expect( response ).to.box( 'the body' );
+		} );
+
+		it( 'allows text/plain; charset=utf-8', async () => {
+			const session = new BodyReturningTestSession( 'the body', {
+				headers: {
+					'Content-Type': 'text/plain; charset=utf-8',
+				},
+			} );
+
+			const response = await getText( session, '/foo' );
+
+			expect( response ).to.box( 'the body' );
+		} );
+
+		it( 'throws IncompatibleResponseType for application/json', async () => {
+			const session = new BodyReturningTestSession( '{}', {
+				headers: {
+					'Content-Type': 'application/json',
+				},
+			} );
+
+			await expect( getText( session, '/foo' ) )
+				.to.be.rejectedWith( IncompatibleResponseType )
+				.and.eventually.deep.include( {
+					expectedType: 'text/plain',
+					actualType: 'application/json',
+					body: {},
+				} );
+		} );
+
+	} );
+
+} );
+
 describe( 'postForJson', () => {
 
 	it( 'makes a request with the right URL, headers and body and returns the body', async () => {
@@ -699,6 +814,61 @@ describe( 'postForJson', () => {
 			} );
 		}
 
+	} );
+
+} );
+
+describe( 'postForText', () => {
+
+	it( 'makes a request with the right URL, headers and body and returns the body', async () => {
+		let called = false;
+		const session = new class TestSession extends Session {
+
+			async fetch( resource, options ) {
+				expect( resource ).to.eql( url( 'https://wiki.test/testw/rest.php/bar' ) );
+				expect( options ).to.have.property( 'method', 'POST' );
+				const headers = getHeaders( options );
+				expect( headers ).to.have.all.keys( 'accept', 'user-agent' );
+				expect( headers.accept ).to.equal( 'text/plain' );
+				expect( headers[ 'user-agent' ] ).to.startWith( 'test-user-agent m3api/' );
+				expect( options.body ).to.eql( new URLSearchParams( { param: 'value' } ) );
+				expect( called ).to.be.false;
+				called = true;
+				return new Response( 'the body', {
+					headers: {
+						'Content-Type': 'text/plain',
+					},
+				} );
+			}
+
+		}( 'https://wiki.test/testw/api.php' );
+
+		const response = await postForText( session, '/bar', new URLSearchParams( {
+			param: 'value',
+		} ), {
+			userAgent: 'test-user-agent',
+		} );
+
+		expect( called ).to.be.true;
+		expect( response ).to.box( 'the body' );
+	} );
+
+	it( 'throws a RestApiClientError for 404', async () => {
+		// the rest of checkResponseStatus() is tested in getJson() above
+		const session = new class StatusReturningTestSession extends Session {
+
+			async fetch() {
+				return new Response( 'the body', { status: 404 } );
+			}
+
+		}( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
+
+		await expect( postForText( session, '/foo', new URLSearchParams() ) )
+			.to.be.rejectedWith( RestApiClientError )
+			.and.eventually.deep.include( {
+				status: 404,
+				body: 'the body',
+			} );
 	} );
 
 } );

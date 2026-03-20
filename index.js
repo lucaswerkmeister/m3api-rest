@@ -326,6 +326,20 @@ function isResponseJson( response ) {
 }
 
 /**
+ * Determine whether this response contains text
+ * (“plain text”, but in practice often wikitext) according to its headers.
+ *
+ * @private
+ * @param {Response} response
+ * @return {boolean}
+ */
+function isResponseText( response ) {
+	const mimeType = getResponseMimeType( response );
+	return mimeType === 'text/plain' ||
+		( mimeType.startsWith( 'text/' ) && mimeType.endsWith( '+plain' ) );
+}
+
+/**
  * Get a version of the body of the response to put in an error.
  *
  * @private
@@ -364,7 +378,7 @@ const responseStatuses = new WeakMap();
 /**
  * Get the HTTP status code for this response.
  *
- * @param {Object|Array} response A response object returned by one of the request functions
+ * @param {Object|Array|String} response A response object returned by one of the request functions
  * ({@link getJson} etc.). Note that it must be exactly the object returned by the function
  * (compared by identity, i.e. `===`), not a serialization of it or anything similar.
  * @return {number} The HTTP status code, i.e. an integer between 200 and 599.
@@ -399,6 +413,28 @@ async function getResponseJson( response ) {
 			'application/json',
 			response.headers.get( 'Content-Type' ),
 			await response.text(),
+		);
+	}
+}
+
+/**
+ * Get the body of the response and check that it’s valid text
+ * (“plain text”, but in practice often wikitext.)
+ *
+ * @private
+ * @param {Response} response
+ * @return {String}
+ */
+async function getResponseText( response ) {
+	if ( isResponseText( response ) ) {
+		const text = new String( await response.text() );
+		responseStatuses.set( text, response.status );
+		return text;
+	} else {
+		throw new IncompatibleResponseType(
+			'text/plain',
+			response.headers.get( 'Content-Type' ),
+			await getResponseBodyForError( response ),
 		);
 	}
 }
@@ -589,6 +625,29 @@ export async function getJson( session, path, params, options = {} ) {
 }
 
 /**
+ * Make a GET request to a REST API endpoint and return the text body.
+ *
+ * @param {Session} session The m3api session to use for this request.
+ * @param {string} path The resource path.
+ * Does not include the domain, script path, or `rest.php` endpoint.
+ * Use the {@link path} tag function to build the path.
+ * @param {Object} [params] Parameters for the request URL.
+ * This may include both parameters for the path and query parameters.
+ * @param {Options} [options] Request options.
+ * @return {String} The body of the API response.
+ * For technical reasons, this is a `String` instance, not a primitive string value;
+ * you can mostly use it interchangeably with an ordinary string,
+ * or turn it into one by calling its `.valueOf()` method.
+ */
+export async function getText( session, path, params, options = {} ) {
+	const [ url, fetchOptions ] = prepareGetRequest( session, path, params, options );
+	addHeaderToOptions( fetchOptions, 'accept', 'text/plain' );
+	const response = await session.fetch( url, fetchOptions );
+	await checkResponseStatus( response );
+	return await getResponseText( response );
+}
+
+/**
  * Encode a body for the request to the server.
  *
  * @param {Object|URLSearchParams|FormData} body
@@ -655,4 +714,30 @@ export async function postForJson( session, path, params, options = {} ) {
 	const response = await session.fetch( url, fetchOptions );
 	await checkResponseStatus( response );
 	return await getResponseJson( response );
+}
+
+/**
+ * Make a POST request to a REST API endpoint and return the text body.
+ *
+ * @param {Session} session The m3api session to use for this request.
+ * @param {string} path The resource path, e.g. `/v1/transform/html/to/wikitext`.
+ * Does not include the domain, script path, or `rest.php` endpoint.
+ * Use the {@link path} tag function to build the path.
+ * @param {Object|URLSearchParams|FormData} params The request body.
+ * An Object will be sent using the `application/json` content type;
+ * URLSearchParams will be sent using the `application/x-www-form-urlencoded` content type;
+ * FormData will be sent using the `multipart/form-data` content type.
+ * You may also include parameters for the path here.
+ * @param {Options} [options] Request options.
+ * @return {String} The body of the API response.
+ * For technical reasons, this is a `String` instance, not a primitive string value;
+ * you can mostly use it interchangeably with an ordinary string,
+ * or turn it into one by calling its `.valueOf()` method.
+ */
+export async function postForText( session, path, params, options = {} ) {
+	const [ url, fetchOptions ] = preparePostRequest( session, path, params, options );
+	addHeaderToOptions( fetchOptions, 'accept', 'text/plain' );
+	const response = await session.fetch( url, fetchOptions );
+	await checkResponseStatus( response );
+	return await getResponseText( response );
 }
