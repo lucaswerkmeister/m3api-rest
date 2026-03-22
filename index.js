@@ -293,6 +293,25 @@ export class InvalidPathParams extends Error {
 }
 
 /**
+ * Get the MIME type (e.g. application/json) of the given response.
+ *
+ * @private
+ * @param {Response} response
+ * @return {string} The mime type part of the Content-Type response header,
+ * not including parameters like ;charset=utf-8
+ */
+function getResponseMimeType( response ) {
+	const contentType = response.headers.get( 'Content-Type' );
+	const [ mimeType ] = contentType.split( ';', 1 );
+	// this accepts some technically invalid Content-Type headers
+	// (we don’t check if the part before ; is a valid media-type,
+	// i.e. two tokens separated by a slash,
+	// cf. https://httpwg.org/specs/rfc9110.html#media.type)
+	// because there’s no reason to reject them
+	return mimeType;
+}
+
+/**
  * Determine whether this response contains JSON
  * according to its headers.
  *
@@ -301,14 +320,9 @@ export class InvalidPathParams extends Error {
  * @return {boolean}
  */
 function isResponseJson( response ) {
-	const contentType = response.headers.get( 'Content-Type' );
-	const [ mimeType ] = contentType.split( ';', 1 ); // split off ;charset=utf-8 and suchlike
+	const mimeType = getResponseMimeType( response );
 	return mimeType === 'application/json' ||
 		( mimeType.startsWith( 'application/' ) && mimeType.endsWith( '+json' ) );
-	// this accepts some technically invalid Content-Type headers
-	// (we don’t check if the part before +json is a valid subtype / token,
-	// cf. https://httpwg.org/specs/rfc9110.html#media.type)
-	// because there’s no reason to reject them
 }
 
 /**

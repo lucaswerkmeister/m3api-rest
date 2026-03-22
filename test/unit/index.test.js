@@ -324,7 +324,7 @@ describe( 'getJson', () => {
 
 	} );
 
-	describe( 'getResponseJson', () => {
+	describe( 'getResponseMimeType, isResponseJson, getResponseJson', () => {
 
 		class BodyReturningTestSession extends Session {
 
@@ -339,6 +339,30 @@ describe( 'getJson', () => {
 			}
 
 		}
+
+		it( 'allows application/custom+json', async () => {
+			const session = new BodyReturningTestSession( { the: 'body' }, {
+				headers: {
+					'Content-Type': 'application/custom+json',
+				},
+			} );
+
+			const response = await getJson( session, '/foo' );
+
+			expect( response ).to.eql( { the: 'body' } );
+		} );
+
+		it( 'allows application/json; charset=utf-8', async () => {
+			const session = new BodyReturningTestSession( { the: 'body' }, {
+				headers: {
+					'Content-Type': 'application/json; charset=utf-8',
+				},
+			} );
+
+			const response = await getJson( session, '/foo' );
+
+			expect( response ).to.eql( { the: 'body' } );
+		} );
 
 		describe( 'throws InvalidResponseBody for', () => {
 
