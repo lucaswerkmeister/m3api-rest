@@ -531,6 +531,44 @@ function substitutePathParams( path, params ) {
 }
 
 /**
+ * Convenience function to add a request header to the given `fetch()` options.
+ *
+ * @private
+ * @param {RequestInit} fetchOptions
+ * @param {string} name
+ * @param {string} value
+ */
+function addHeaderToOptions( fetchOptions, name, value ) {
+	fetchOptions.headers = new Headers( fetchOptions.headers );
+	fetchOptions.headers.set( name, value );
+}
+
+/**
+ * Prepare a GET request for the given parameters.
+ * Encodes the params into the URL and sets up request headers.
+ *
+ * @private
+ * @param {Session} session
+ * @param {string} path
+ * @param {Object} params
+ * @param {Options} options
+ * @return {Array} url and fetchOptions
+ */
+function prepareGetRequest( session, path, params, options ) {
+	( { path, params } = substitutePathParams( path, params ) );
+	const restUrl = session.apiUrl.replace( /api\.php$/, 'rest.php' );
+	const url = new URL( restUrl + path );
+	for ( const [ name, value ] of Object.entries( params || {} ) ) {
+		url.searchParams.append( name, value );
+	}
+	const fetchOptions = {
+		method: 'GET',
+		headers: session.getRequestHeaders( options ),
+	};
+	return [ url, fetchOptions ];
+}
+
+/**
  * Make a GET request to a REST API endpoint and return the JSON-decoded body.
  *
  * @param {Session} session The m3api session to use for this request.
@@ -543,20 +581,9 @@ function substitutePathParams( path, params ) {
  * @return {Object|Array} The body of the API response, JSON-decoded.
  */
 export async function getJson( session, path, params, options = {} ) {
-	( { path, params } = substitutePathParams( path, params ) );
-	const restUrl = session.apiUrl.replace( /api\.php$/, 'rest.php' );
-	const url = new URL( restUrl + path );
-	for ( const [ name, value ] of Object.entries( params || {} ) ) {
-		url.searchParams.append( name, value );
-	}
-	const headers = {
-		accept: 'application/json',
-		...session.getRequestHeaders( options ),
-	};
-	const response = await session.fetch( url, {
-		method: 'GET',
-		headers,
-	} );
+	const [ url, fetchOptions ] = prepareGetRequest( session, path, params, options );
+	addHeaderToOptions( fetchOptions, 'accept', 'application/json' );
+	const response = await session.fetch( url, fetchOptions );
 	await checkResponseStatus( response );
 	return await getResponseJson( response );
 }
@@ -581,6 +608,32 @@ function encodeBody( body ) {
 }
 
 /**
+ * Prepare a POST request for the given parameters.
+ * Encodes the params into the URL and body and sets up request headers.
+ *
+ * @private
+ * @param {Session} session
+ * @param {string} path
+ * @param {Object} params
+ * @param {Options} options
+ * @return {Array} url and fetchOptions
+ */
+function preparePostRequest( session, path, params, options ) {
+	( { path, params } = substitutePathParams( path, params ) );
+	const restUrl = session.apiUrl.replace( /api\.php$/, 'rest.php' );
+	const url = new URL( restUrl + path );
+	const fetchOptions = {
+		method: 'POST',
+		...encodeBody( params ),
+	};
+	fetchOptions.headers = new Headers( fetchOptions.headers );
+	for ( const [ name, value ] of Object.entries( session.getRequestHeaders( options ) ) ) {
+		fetchOptions.headers.set( name, value );
+	}
+	return [ url, fetchOptions ];
+}
+
+/**
  * Make a POST request to a REST API endpoint and return the JSON-decoded body.
  *
  * @param {Session} session The m3api session to use for this request.
@@ -596,18 +649,9 @@ function encodeBody( body ) {
  * @return {Object|Array} The body of the API response, JSON-decoded.
  */
 export async function postForJson( session, path, params, options = {} ) {
-	( { path, params } = substitutePathParams( path, params ) );
-	const restUrl = session.apiUrl.replace( /api\.php$/, 'rest.php' );
-	const url = new URL( restUrl + path );
-	const fetchOptions = {
-		method: 'POST',
-		...encodeBody( params ),
-	};
-	fetchOptions.headers = new Headers( fetchOptions.headers );
-	// fetchOptions.headers.set( 'accept', 'application/json' ); // skip this for now due to T412610
-	for ( const [ name, value ] of Object.entries( session.getRequestHeaders( options ) ) ) {
-		fetchOptions.headers.set( name, value );
-	}
+	const [ url, fetchOptions ] = preparePostRequest( session, path, params, options );
+	// skip this for now due to T412610
+	// addHeaderToOptions( fetchOptions, 'accept', 'application/json' );
 	const response = await session.fetch( url, fetchOptions );
 	await checkResponseStatus( response );
 	return await getResponseJson( response );

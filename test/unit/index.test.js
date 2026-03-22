@@ -133,26 +133,6 @@ describe( 'getJson', () => {
 		expect( getResponseStatus( response ) ).to.equal( 200 );
 	} );
 
-	it( 'merges request params from the URL and function parameters', async () => {
-		const session = new class TestSession extends Session {
-
-			async fetch( resource ) {
-				expect( resource ).to.eql( url( 'https://wiki.test/testw/rest.php/foo', {
-					pathparam: 'path param',
-					functionparam: 'function param',
-				} ) );
-				return Response.json( { the: 'body' } );
-			}
-
-		}( 'https://wiki.test/testw/api.php', {}, { userAgent: 'test-user-agent' } );
-
-		const response = await getJson( session, path`/foo?${ { pathparam: 'path param' } }`, {
-			functionparam: 'function param',
-		} );
-
-		expect( response ).to.eql( { the: 'body' } );
-	} );
-
 	it( 'returns an array body and its status', async () => {
 		let called = false;
 		const session = new class TestSession extends Session {
@@ -181,23 +161,47 @@ describe( 'getJson', () => {
 		expect( getResponseStatus( response ) ).to.equal( 299 );
 	} );
 
-	it( 'sends an Authorization header if specified', async () => {
-		const session = new class TestSession extends Session {
+	describe( 'prepareGetRequest', () => {
 
-			async fetch( resource, options ) {
-				const headers = getHeaders( options );
-				expect( headers ).to.have.property( 'authorization', 'Bearer test access token' );
-				return Response.json( { the: 'body' } );
-			}
+		it( 'merges request params from the URL and function parameters', async () => {
+			const session = new class TestSession extends Session {
 
-		}( 'wiki.test', {}, {
-			userAgent: 'test-user-agent',
-			accessToken: 'test access token',
+				async fetch( resource ) {
+					expect( resource ).to.eql( url( 'https://wiki.test/testw/rest.php/foo', {
+						pathparam: 'path param',
+						functionparam: 'function param',
+					} ) );
+					return Response.json( { the: 'body' } );
+				}
+
+			}( 'https://wiki.test/testw/api.php', {}, { userAgent: 'test-user-agent' } );
+
+			const response = await getJson( session, path`/foo?${ { pathparam: 'path param' } }`, {
+				functionparam: 'function param',
+			} );
+
+			expect( response ).to.eql( { the: 'body' } );
 		} );
 
-		const response = await getJson( session, '/foo' );
+		it( 'sends an Authorization header if specified', async () => {
+			const session = new class TestSession extends Session {
 
-		expect( response ).to.eql( { the: 'body' } );
+				async fetch( resource, options ) {
+					const headers = getHeaders( options );
+					expect( headers ).to.have.property( 'authorization', 'Bearer test access token' );
+					return Response.json( { the: 'body' } );
+				}
+
+			}( 'wiki.test', {}, {
+				userAgent: 'test-user-agent',
+				accessToken: 'test access token',
+			} );
+
+			const response = await getJson( session, '/foo' );
+
+			expect( response ).to.eql( { the: 'body' } );
+		} );
+
 	} );
 
 	describe( 'substitutePathParams', () => {
@@ -435,25 +439,6 @@ describe( 'postForJson', () => {
 		expect( response ).to.eql( { the: 'body' } );
 	} );
 
-	it( 'sends an Authorization header if specified', async () => {
-		const session = new class TestSession extends Session {
-
-			async fetch( resource, options ) {
-				const headers = getHeaders( options );
-				expect( headers ).to.have.property( 'authorization', 'Bearer test access token' );
-				return Response.json( { the: 'body' } );
-			}
-
-		}( 'wiki.test', {}, {
-			userAgent: 'test-user-agent',
-			accessToken: 'test access token',
-		} );
-
-		const response = await postForJson( session, '/foo', new URLSearchParams() );
-
-		expect( response ).to.eql( { the: 'body' } );
-	} );
-
 	it( 'throws a RestApiClientError for 404', async () => {
 		// the rest of checkResponseStatus() is tested in getJson() above
 		const session = new class StatusReturningTestSession extends Session {
@@ -560,6 +545,29 @@ describe( 'postForJson', () => {
 			} );
 
 			expect( called ).to.be.true;
+		} );
+
+	} );
+
+	describe( 'preparePostRequest', () => {
+
+		it( 'sends an Authorization header if specified', async () => {
+			const session = new class TestSession extends Session {
+
+				async fetch( resource, options ) {
+					const headers = getHeaders( options );
+					expect( headers ).to.have.property( 'authorization', 'Bearer test access token' );
+					return Response.json( { the: 'body' } );
+				}
+
+			}( 'wiki.test', {}, {
+				userAgent: 'test-user-agent',
+				accessToken: 'test access token',
+			} );
+
+			const response = await postForJson( session, '/foo', new URLSearchParams() );
+
+			expect( response ).to.eql( { the: 'body' } );
 		} );
 
 	} );
