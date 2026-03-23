@@ -340,6 +340,20 @@ function isResponseText( response ) {
 }
 
 /**
+ * Determine whether this response contains HTML
+ * according to its headers.
+ *
+ * @private
+ * @param {Response} response
+ * @return {boolean}
+ */
+function isResponseHtml( response ) {
+	const mimeType = getResponseMimeType( response );
+	return mimeType === 'text/html' ||
+		( mimeType.startsWith( 'text/' ) && mimeType.endsWith( '+html' ) );
+}
+
+/**
  * Get a version of the body of the response to put in an error.
  *
  * @private
@@ -433,6 +447,27 @@ async function getResponseText( response ) {
 	} else {
 		throw new IncompatibleResponseType(
 			'text/plain',
+			response.headers.get( 'Content-Type' ),
+			await getResponseBodyForError( response ),
+		);
+	}
+}
+
+/**
+ * Get the body of the response and check that it’s valid HTML.
+ *
+ * @private
+ * @param {Response} response
+ * @return {String}
+ */
+async function getResponseHtml( response ) {
+	if ( isResponseHtml( response ) ) {
+		const html = new String( await response.text() );
+		responseStatuses.set( html, response.status );
+		return html;
+	} else {
+		throw new IncompatibleResponseType(
+			'text/html',
 			response.headers.get( 'Content-Type' ),
 			await getResponseBodyForError( response ),
 		);
@@ -648,6 +683,29 @@ export async function getText( session, path, params, options = {} ) {
 }
 
 /**
+ * Make a GET request to a REST API endpoint and return the HTML body.
+ *
+ * @param {Session} session The m3api session to use for this request.
+ * @param {string} path The resource path, e.g. `/v1/page/{title}/html`.
+ * Does not include the domain, script path, or `rest.php` endpoint.
+ * Use the {@link path} tag function to build the path.
+ * @param {Object} [params] Parameters for the request URL.
+ * This may include both parameters for the path and query parameters.
+ * @param {Options} [options] Request options.
+ * @return {String} The body of the API response.
+ * For technical reasons, this is a `String` instance, not a primitive string value;
+ * you can mostly use it interchangeably with an ordinary string,
+ * or turn it into one by calling its `.valueOf()` method.
+ */
+export async function getHtml( session, path, params, options = {} ) {
+	const [ url, fetchOptions ] = prepareGetRequest( session, path, params, options );
+	addHeaderToOptions( fetchOptions, 'accept', 'text/html' );
+	const response = await session.fetch( url, fetchOptions );
+	await checkResponseStatus( response );
+	return await getResponseHtml( response );
+}
+
+/**
  * Encode a body for the request to the server.
  *
  * @param {Object|URLSearchParams|FormData} body
@@ -740,4 +798,30 @@ export async function postForText( session, path, params, options = {} ) {
 	const response = await session.fetch( url, fetchOptions );
 	await checkResponseStatus( response );
 	return await getResponseText( response );
+}
+
+/**
+ * Make a POST request to a REST API endpoint and return the HTML body.
+ *
+ * @param {Session} session The m3api session to use for this request.
+ * @param {string} path The resource path, e.g. `/v1/transform/wikitext/to/html`.
+ * Does not include the domain, script path, or `rest.php` endpoint.
+ * Use the {@link path} tag function to build the path.
+ * @param {Object|URLSearchParams|FormData} params The request body.
+ * An Object will be sent using the `application/json` content type;
+ * URLSearchParams will be sent using the `application/x-www-form-urlencoded` content type;
+ * FormData will be sent using the `multipart/form-data` content type.
+ * You may also include parameters for the path here.
+ * @param {Options} [options] Request options.
+ * @return {String} The body of the API response.
+ * For technical reasons, this is a `String` instance, not a primitive string value;
+ * you can mostly use it interchangeably with an ordinary string,
+ * or turn it into one by calling its `.valueOf()` method.
+ */
+export async function postForHtml( session, path, params, options = {} ) {
+	const [ url, fetchOptions ] = preparePostRequest( session, path, params, options );
+	addHeaderToOptions( fetchOptions, 'accept', 'text/html' );
+	const response = await session.fetch( url, fetchOptions );
+	await checkResponseStatus( response );
+	return await getResponseHtml( response );
 }

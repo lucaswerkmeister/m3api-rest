@@ -3,9 +3,11 @@
 import Session from 'm3api/node.js';
 import {
 	RestApiClientError,
+	getHtml,
 	getJson,
 	getResponseStatus,
 	path,
+	postForHtml,
 	postForJson,
 	postForText,
 } from '../../index.js';
@@ -75,6 +77,23 @@ describe( 'getJson', function () {
 
 } );
 
+describe( 'getHtml', function () {
+
+	this.timeout( 60000 );
+
+	it( 'gets page HTML', async () => {
+		const session = new Session( 'en.wikipedia.org', {}, { userAgent } );
+		const title = 'Main Page';
+
+		const html = await getHtml( session, path`/v1/page/${ title }/html` );
+
+		expect( html ).to.be.an.instanceof( String )
+			.that.contains( 'Welcome' ); // let’s assume this word will be relatively stable
+		expect( getResponseStatus( html ) ).to.equal( 200 );
+	} );
+
+} );
+
 describe( 'postForJson', function () {
 
 	this.timeout( 60000 );
@@ -122,5 +141,23 @@ describe( 'postForText', function () {
 			expect( getResponseStatus( response ) ).to.equal( 200 );
 		} );
 	}
+
+} );
+
+describe( 'postForHtml', function () {
+
+	this.timeout( 60000 );
+
+	it( 'converts wikitext into HTML', async () => {
+		const session = new Session( 'en.wikipedia.org', {}, { userAgent } );
+
+		const response = await postForHtml( session, path`/v1/transform/wikitext/to/html`, {
+			wikitext: "''Hello, world!''",
+		} );
+
+		expect( response ).to.be.an.instanceof( String )
+			.that.contains( '>Hello, world!</i>' );
+		expect( getResponseStatus( response ) ).to.equal( 200 );
+	} );
 
 } );
