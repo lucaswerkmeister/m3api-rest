@@ -84,7 +84,7 @@ describe( 'postForJson', function () {
 		} ) );
 
 		expect( response ).to.eql( [] );
-		expect( getResponseStatus( response ) ).to.eql( 200 );
+		expect( getResponseStatus( response ) ).to.equal( 200 );
 	} );
 
 } );
