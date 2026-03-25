@@ -7,7 +7,14 @@ but this file may sometimes contain later improvements (e.g. typo fixes).
 
 ## next (not yet released)
 
-No changes yet.
+- BREAKING CHANGE:
+  The `body` property of the `RestApiServerError`,
+  `RestApiClientError` and `UnexpectedResponseStatus` classes
+  is now documented with the type `*` (“any”) rather than `string|Object`.
+  The previous type was incorrect – if the server response is JSON,
+  m3api-rest just decodes it for the error without checking if it’s an object or not.
+  (You almost certainly don’t need to care about this change,
+  but it’s technically breaking.)
 
 ## v0.1.1 (2026-04-05)
 

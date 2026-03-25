@@ -5,7 +5,7 @@ export class RestApiServerError extends Error {
 
 	/**
 	 * @param {number} status The invalid status code received from the API.
-	 * @param {string|Object} body The response body received from the API.
+	 * @param {*} body The response body received from the API.
 	 */
 	constructor( status, body ) {
 		super( `REST API server error: ${ status }\n\n${ JSON.stringify( body ) }` );
@@ -27,9 +27,9 @@ export class RestApiServerError extends Error {
 		 * The body of the response.
 		 *
 		 * Depending on the response’s content type,
-		 * this may be a string or a JSON-decoded object.
+		 * this may be a string or a JSON-decoded value.
 		 *
-		 * @member {string|Object}
+		 * @member {*}
 		 */
 		this.body = body;
 	}
@@ -43,7 +43,7 @@ export class RestApiClientError extends Error {
 
 	/**
 	 * @param {number} status The invalid status code received from the API.
-	 * @param {string|Object} body The response body received from the API.
+	 * @param {*} body The response body received from the API.
 	 */
 	constructor( status, body ) {
 		super( `REST API client error: ${ status }\n\n${ JSON.stringify( body ) }` );
@@ -65,9 +65,9 @@ export class RestApiClientError extends Error {
 		 * The body of the response.
 		 *
 		 * Depending on the response’s content type,
-		 * this may be a string or a JSON-decoded object.
+		 * this may be a string or a JSON-decoded value.
 		 *
-		 * @member {string|Object}
+		 * @member {*}
 		 */
 		this.body = body;
 	}
@@ -83,7 +83,7 @@ export class UnexpectedResponseStatus extends Error {
 
 	/**
 	 * @param {number} status The unexpected status code received from the API.
-	 * @param {string|Object} body The response body received from the API.
+	 * @param {*} body The response body received from the API.
 	 */
 	constructor( status, body ) {
 		super( `Unexpected REST API response status: ${ status }\n\n${ JSON.stringify( body ) }` );
@@ -105,9 +105,9 @@ export class UnexpectedResponseStatus extends Error {
 		 * The body of the response.
 		 *
 		 * Depending on the response’s content type,
-		 * this may be a string or a JSON-decoded object.
+		 * this may be a string or a JSON-decoded value.
 		 *
-		 * @member {string|Object}
+		 * @member {*}
 		 */
 		this.body = body;
 	}
@@ -316,7 +316,7 @@ function isResponseJson( response ) {
  *
  * @private
  * @param {Response} response
- * @return {string|Object}
+ * @return {*}
  */
 async function getResponseBodyForError( response ) {
 	if ( isResponseJson( response ) ) {
