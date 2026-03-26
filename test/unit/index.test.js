@@ -53,6 +53,34 @@ function url( base, params = null ) {
 	return url;
 }
 
+/**
+ * Return a Session that expects a single fetch() call
+ * and returns a response from the given parameters.
+ * The input to the fetch() call is ignored.
+ *
+ * @param {Response|string|Object} responseOrBody An existing response,
+ * or the body of a text or JSON response.
+ * @param {Object} options Response constructor options.
+ * Ignored if responseOrBody is a Response.
+ * @return {Session}
+ */
+function singleRequestSession( responseOrBody = {}, options = {} ) {
+	let called = false;
+	return new class TestSession extends Session {
+
+		async fetch() {
+			expect( called, 'already called' ).to.be.false;
+			called = true;
+			return responseOrBody instanceof Response ?
+				responseOrBody :
+				typeof responseOrBody === 'string' ?
+					new Response( responseOrBody, options ) :
+					Response.json( responseOrBody, options );
+		}
+
+	}( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
+}
+
 describe( 'path', () => {
 
 	it( 'URI-encodes one parameter', () => {
@@ -297,24 +325,11 @@ describe( 'getJson', () => {
 
 		const body = { the: 'body' };
 
-		class StatusReturningTestSession extends Session {
-
-			constructor( status ) {
-				super( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
-				this.status = status;
-			}
-
-			async fetch() {
-				return Response.json( body, { status: this.status } );
-			}
-
-		}
-
 		describe( 'throws RestApiServerError for', () => {
 
 			for ( const status of [ 500, 504, 599 ] ) {
 				it( JSON.stringify( status ), async () => {
-					const session = new StatusReturningTestSession( status );
+					const session = singleRequestSession( body, { status } );
 
 					await expect( getJson( session, '/foo' ) )
 						.to.be.rejectedWith( RestApiServerError )
@@ -328,7 +343,7 @@ describe( 'getJson', () => {
 
 			for ( const status of [ 400, 404, 499 ] ) {
 				it( JSON.stringify( status ), async () => {
-					const session = new StatusReturningTestSession( status );
+					const session = singleRequestSession( body, { status } );
 
 					await expect( getJson( session, '/foo' ) )
 						.to.be.rejectedWith( RestApiClientError )
@@ -342,7 +357,7 @@ describe( 'getJson', () => {
 
 			for ( const status of [ 300, 302, 399 ] ) {
 				it( JSON.stringify( status ), async () => {
-					const session = new StatusReturningTestSession( status );
+					const session = singleRequestSession( body, { status } );
 
 					await expect( getJson( session, '/foo' ) )
 						.to.be.rejectedWith( UnexpectedResponseStatus )
@@ -356,22 +371,8 @@ describe( 'getJson', () => {
 
 	describe( 'getResponseMimeType, isResponseJson, getResponseJson', () => {
 
-		class BodyReturningTestSession extends Session {
-
-			constructor( body, options ) {
-				super( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
-				this.body = body;
-				this.options = options;
-			}
-
-			async fetch() {
-				return Response.json( this.body, this.options );
-			}
-
-		}
-
 		it( 'allows application/custom+json', async () => {
-			const session = new BodyReturningTestSession( { the: 'body' }, {
+			const session = singleRequestSession( { the: 'body' }, {
 				headers: {
 					'Content-Type': 'application/custom+json',
 				},
@@ -383,7 +384,7 @@ describe( 'getJson', () => {
 		} );
 
 		it( 'allows application/json; charset=utf-8', async () => {
-			const session = new BodyReturningTestSession( { the: 'body' }, {
+			const session = singleRequestSession( { the: 'body' }, {
 				headers: {
 					'Content-Type': 'application/json; charset=utf-8',
 				},
@@ -398,7 +399,7 @@ describe( 'getJson', () => {
 
 			for ( const body of [ true, false, null, 0, 1 ] ) {
 				it( JSON.stringify( body ), async () => {
-					const session = new BodyReturningTestSession( body );
+					const session = singleRequestSession( Response.json( body ) );
 
 					await expect( getJson( session, '/foo' ) )
 						.to.be.rejectedWith( InvalidResponseBody )
@@ -409,7 +410,7 @@ describe( 'getJson', () => {
 		} );
 
 		it( 'throws IncompatibleResponseType for text/plain', async () => {
-			const session = new BodyReturningTestSession( {}, {
+			const session = singleRequestSession( {}, {
 				headers: {
 					'Content-Type': 'text/plain',
 				},
@@ -463,13 +464,7 @@ describe( 'getText', () => {
 
 	it( 'throws a RestApiClientError for 404', async () => {
 		// the rest of checkResponseStatus() is tested in getJson() above
-		const session = new class StatusReturningTestSession extends Session {
-
-			async fetch() {
-				return new Response( 'the body', { status: 404 } );
-			}
-
-		}( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
+		const session = singleRequestSession( 'the body', { status: 404 } );
 
 		await expect( getText( session, '/foo' ) )
 			.to.be.rejectedWith( RestApiClientError )
@@ -481,22 +476,8 @@ describe( 'getText', () => {
 
 	describe( 'getResponseMimeType, isResponseText, getResponseText', () => {
 
-		class BodyReturningTestSession extends Session {
-
-			constructor( body, options ) {
-				super( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
-				this.body = body;
-				this.options = options;
-			}
-
-			async fetch() {
-				return new Response( this.body, this.options );
-			}
-
-		}
-
 		it( 'allows text/custom+plain', async () => {
-			const session = new BodyReturningTestSession( 'the body', {
+			const session = singleRequestSession( 'the body', {
 				headers: {
 					'Content-Type': 'text/custom+plain',
 				},
@@ -508,7 +489,7 @@ describe( 'getText', () => {
 		} );
 
 		it( 'allows text/plain; charset=utf-8', async () => {
-			const session = new BodyReturningTestSession( 'the body', {
+			const session = singleRequestSession( 'the body', {
 				headers: {
 					'Content-Type': 'text/plain; charset=utf-8',
 				},
@@ -520,7 +501,7 @@ describe( 'getText', () => {
 		} );
 
 		it( 'throws IncompatibleResponseType for application/json', async () => {
-			const session = new BodyReturningTestSession( '{}', {
+			const session = singleRequestSession( '{}', {
 				headers: {
 					'Content-Type': 'application/json',
 				},
@@ -536,7 +517,7 @@ describe( 'getText', () => {
 		} );
 
 		it( 'throws IncompatibleResponseType for text/html', async () => {
-			const session = new BodyReturningTestSession( '<p>the body</p>', {
+			const session = singleRequestSession( '<p>the body</p>', {
 				headers: {
 					'Content-Type': 'text/html',
 				},
@@ -590,13 +571,7 @@ describe( 'getHtml', () => {
 
 	it( 'throws a RestApiClientError for 404', async () => {
 		// the rest of checkResponseStatus() is tested in getJson() above
-		const session = new class StatusReturningTestSession extends Session {
-
-			async fetch() {
-				return new Response( 'the body', { status: 404 } );
-			}
-
-		}( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
+		const session = singleRequestSession( 'the body', { status: 404 } );
 
 		await expect( getHtml( session, '/foo' ) )
 			.to.be.rejectedWith( RestApiClientError )
@@ -608,22 +583,8 @@ describe( 'getHtml', () => {
 
 	describe( 'getResponseMimeType, isResponseHtml, getResponseHtml', () => {
 
-		class BodyReturningTestSession extends Session {
-
-			constructor( body, options ) {
-				super( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
-				this.body = body;
-				this.options = options;
-			}
-
-			async fetch() {
-				return new Response( this.body, this.options );
-			}
-
-		}
-
 		it( 'allows text/custom+html', async () => {
-			const session = new BodyReturningTestSession( '<p>the body</p>', {
+			const session = singleRequestSession( '<p>the body</p>', {
 				headers: {
 					'Content-Type': 'text/custom+html',
 				},
@@ -635,7 +596,7 @@ describe( 'getHtml', () => {
 		} );
 
 		it( 'allows text/html; charset=utf-8', async () => {
-			const session = new BodyReturningTestSession( '<p>the body</p>', {
+			const session = singleRequestSession( '<p>the body</p>', {
 				headers: {
 					'Content-Type': 'text/html; charset=utf-8',
 				},
@@ -647,7 +608,7 @@ describe( 'getHtml', () => {
 		} );
 
 		it( 'throws IncompatibleResponseType for application/json', async () => {
-			const session = new BodyReturningTestSession( '{}', {
+			const session = singleRequestSession( '{}', {
 				headers: {
 					'Content-Type': 'application/json',
 				},
@@ -663,7 +624,7 @@ describe( 'getHtml', () => {
 		} );
 
 		it( 'throws IncompatibleResponseType for text/plain', async () => {
-			const session = new BodyReturningTestSession( 'the body', {
+			const session = singleRequestSession( 'the body', {
 				headers: {
 					'Content-Type': 'text/plain',
 				},
@@ -721,13 +682,7 @@ describe( 'postForJson', () => {
 
 	it( 'throws a RestApiClientError for 404', async () => {
 		// the rest of checkResponseStatus() is tested in getJson() above
-		const session = new class StatusReturningTestSession extends Session {
-
-			async fetch() {
-				return Response.json( { the: 'body' }, { status: 404 } );
-			}
-
-		}( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
+		const session = singleRequestSession( { the: 'body' }, { status: 404 } );
 
 		await expect( postForJson( session, '/foo', new URLSearchParams() ) )
 			.to.be.rejectedWith( RestApiClientError )
@@ -1020,13 +975,7 @@ describe( 'postForText', () => {
 
 	it( 'throws a RestApiClientError for 404', async () => {
 		// the rest of checkResponseStatus() is tested in getJson() above
-		const session = new class StatusReturningTestSession extends Session {
-
-			async fetch() {
-				return new Response( 'the body', { status: 404 } );
-			}
-
-		}( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
+		const session = singleRequestSession( 'the body', { status: 404 } );
 
 		await expect( postForText( session, '/foo', new URLSearchParams() ) )
 			.to.be.rejectedWith( RestApiClientError )
@@ -1075,13 +1024,7 @@ describe( 'postForHtml', () => {
 
 	it( 'throws a RestApiClientError for 404', async () => {
 		// the rest of checkResponseStatus() is tested in getJson() above
-		const session = new class StatusReturningTestSession extends Session {
-
-			async fetch() {
-				return new Response( 'the body', { status: 404 } );
-			}
-
-		}( 'wiki.test', {}, { userAgent: 'test-user-agent' } );
+		const session = singleRequestSession( 'the body', { status: 404 } );
 
 		await expect( postForHtml( session, '/foo', new URLSearchParams() ) )
 			.to.be.rejectedWith( RestApiClientError )
