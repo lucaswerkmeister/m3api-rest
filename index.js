@@ -733,6 +733,33 @@ function encodeBody( body ) {
 }
 
 /**
+ * Prepare a non-GET request for the given parameters.
+ * Encodes the params into the URL and body and sets up request headers.
+ * The caller must set the specific method afterwards.
+ *
+ * @private
+ * @param {Session} session
+ * @param {string} path
+ * @param {Object} params
+ * @param {Options} options
+ * @return {Array} url and fetchOptions
+ */
+function prepareRequestWithBody( session, path, params, options ) {
+	( { path, params } = substitutePathParams( path, params ) );
+	const restUrl = session.apiUrl.replace( /api\.php$/, 'rest.php' );
+	const url = new URL( restUrl + path );
+	const fetchOptions = {
+		method: '', // trigger a TypeError in fetch() if caller does not override method
+		...encodeBody( params ),
+	};
+	fetchOptions.headers = new Headers( fetchOptions.headers );
+	for ( const [ name, value ] of Object.entries( session.getRequestHeaders( options ) ) ) {
+		fetchOptions.headers.set( name, value );
+	}
+	return [ url, fetchOptions ];
+}
+
+/**
  * Prepare a POST request for the given parameters.
  * Encodes the params into the URL and body and sets up request headers.
  *
@@ -744,18 +771,11 @@ function encodeBody( body ) {
  * @return {Array} url and fetchOptions
  */
 function preparePostRequest( session, path, params, options ) {
-	( { path, params } = substitutePathParams( path, params ) );
-	const restUrl = session.apiUrl.replace( /api\.php$/, 'rest.php' );
-	const url = new URL( restUrl + path );
-	const fetchOptions = {
+	const [ url, fetchOptions ] = prepareRequestWithBody( session, path, params, options );
+	return [ url, {
+		...fetchOptions,
 		method: 'POST',
-		...encodeBody( params ),
-	};
-	fetchOptions.headers = new Headers( fetchOptions.headers );
-	for ( const [ name, value ] of Object.entries( session.getRequestHeaders( options ) ) ) {
-		fetchOptions.headers.set( name, value );
-	}
-	return [ url, fetchOptions ];
+	} ];
 }
 
 /**

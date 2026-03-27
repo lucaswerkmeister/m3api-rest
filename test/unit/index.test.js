@@ -784,7 +784,7 @@ describe( 'postForJson', () => {
 
 	} );
 
-	describe( 'preparePostRequest', () => {
+	describe( 'prepareRequestWithBody, preparePostRequest', () => {
 
 		it( 'sends an Authorization header if specified', async () => {
 			const session = new class TestSession extends Session {
