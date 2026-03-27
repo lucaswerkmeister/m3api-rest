@@ -1,6 +1,8 @@
 /* eslint-env mocha */
 
 import Session from 'm3api/node.js';
+import fs from 'fs/promises';
+import process from 'process';
 import {
 	RestApiClientError,
 	getHtml,
@@ -10,6 +12,7 @@ import {
 	postForHtml,
 	postForJson,
 	postForText,
+	putForJson,
 } from '../../index.js';
 import chaiBox from '../helper/box.js';
 import { expect, use } from 'chai';
@@ -168,6 +171,87 @@ describe( 'postForHtml', function () {
 		expect( response ).to.be.an.instanceof( String )
 			.that.contains( '>Hello, world!</i>' );
 		expect( getResponseStatus( response ) ).to.equal( 200 );
+	} );
+
+} );
+
+describe( 'putForJson', function () {
+
+	this.timeout( 60000 );
+
+	let mediawikiUsername, mediawikiAccessToken;
+
+	before( 'load credentials', async () => {
+		// note: m3api has a copy of this code
+		mediawikiUsername = process.env.MEDIAWIKI_BETA_REAL_USERNAME;
+		mediawikiAccessToken = process.env.MEDIAWIKI_BETA_OAUTH_OWNERONLY_CLIENT_ACCESS_TOKEN;
+
+		if ( !mediawikiUsername || !mediawikiAccessToken ) {
+			let envFile;
+			try {
+				envFile = await fs.readFile( '.env', { encoding: 'utf8' } );
+			} catch ( e ) {
+				if ( e.code === 'ENOENT' ) {
+					return;
+				} else {
+					throw e;
+				}
+			}
+
+			for ( let line of envFile.split( '\n' ) ) {
+				line = line.trim();
+				if ( line.startsWith( '#' ) || line === '' ) {
+					continue;
+				}
+
+				const match = line.match( /^([^=]*)='([^']*)'$/ );
+				if ( !match ) {
+					console.warn( `.env: ignoring bad format: ${ line }` );
+					continue;
+				}
+				switch ( match[ 1 ] ) {
+					case 'MEDIAWIKI_BETA_REAL_USERNAME':
+						if ( !mediawikiUsername ) {
+							mediawikiUsername = match[ 2 ];
+						}
+						break;
+					case 'MEDIAWIKI_BETA_OAUTH_OWNERONLY_CLIENT_ACCESS_TOKEN':
+						if ( !mediawikiAccessToken ) {
+							mediawikiAccessToken = match[ 2 ];
+						}
+						break;
+					default:
+						console.warn( `.env: ignoring unknown assignment: ${ line }` );
+						break;
+				}
+			}
+		}
+	} );
+
+	it( 'edits a page (feat. getJson)', async function () {
+		if ( !mediawikiUsername || !mediawikiAccessToken ) {
+			return this.skip();
+		}
+		const session = new Session( 'meta.wikimedia.beta.wmcloud.org', {}, {
+			accessToken: mediawikiAccessToken,
+			userAgent,
+		} );
+
+		const title = `User:${ mediawikiUsername }/m3api test`;
+		const page = await getJson( session, path`/v1/page/${ title }` );
+		expect( page ).to.have.property( 'content_model', 'wikitext' );
+		expect( page ).to.have.nested.property( 'latest.id' );
+
+		const updatedPage = await putForJson( session, path`/v1/page/${ title }`, {
+			source: `Test content (${ new Date().toISOString() }).`,
+			comment: 'm3api-rest test',
+			// eslint-disable-next-line camelcase
+			content_model: page.content_model,
+			latest: page.latest,
+			// token: not needed because we authenticate via OAuth 2
+		} );
+		expect( updatedPage ).to.have.nested.property( 'latest.id' );
+		expect( updatedPage.latest.id ).to.be.above( page.latest.id );
 	} );
 
 } );

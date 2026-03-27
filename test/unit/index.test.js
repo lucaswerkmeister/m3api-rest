@@ -17,6 +17,9 @@ import {
 	postForHtml,
 	postForJson,
 	postForText,
+	putForHtml,
+	putForJson,
+	putForText,
 } from '../../index.js';
 import chaiBox from '../helper/box.js';
 import { File } from 'buffer'; // only available globally since Node 20
@@ -1027,6 +1030,149 @@ describe( 'postForHtml', () => {
 		const session = singleRequestSession( 'the body', { status: 404 } );
 
 		await expect( postForHtml( session, '/foo', new URLSearchParams() ) )
+			.to.be.rejectedWith( RestApiClientError )
+			.and.eventually.deep.include( {
+				status: 404,
+				body: 'the body',
+			} );
+	} );
+
+} );
+
+describe( 'putForJson', () => {
+
+	it( 'makes a request with the right URL, headers and body and returns the body', async () => {
+		let called = false;
+		const session = new class TestSession extends Session {
+
+			async fetch( resource, options ) {
+				expect( resource ).to.eql( url( 'https://wiki.test/testw/rest.php/bar' ) );
+				expect( options ).to.have.property( 'method', 'PUT' );
+				const headers = getHeaders( options );
+				expect( headers ).to.have.all.keys( 'accept', 'user-agent' );
+				expect( headers.accept ).to.equal( 'application/json' );
+				expect( headers[ 'user-agent' ] ).to.startWith( 'test-user-agent m3api/' );
+				expect( options.body ).to.eql( new URLSearchParams( { param: 'value' } ) );
+				expect( called ).to.be.false;
+				called = true;
+				return Response.json( { the: 'body' } );
+			}
+
+		}( 'https://wiki.test/testw/api.php' );
+
+		const response = await putForJson( session, '/bar', new URLSearchParams( {
+			param: 'value',
+		} ), {
+			userAgent: 'test-user-agent',
+		} );
+
+		expect( called ).to.be.true;
+		expect( response ).to.eql( { the: 'body' } );
+	} );
+
+	it( 'throws a RestApiClientError for 404', async () => {
+		// the rest of checkResponseStatus() is tested in getJson() above
+		const session = singleRequestSession( { the: 'body' }, { status: 404 } );
+
+		await expect( putForJson( session, '/foo', new URLSearchParams() ) )
+			.to.be.rejectedWith( RestApiClientError )
+			.and.eventually.deep.include( {
+				status: 404,
+				body: { the: 'body' },
+			} );
+	} );
+
+} );
+
+describe( 'putForText', () => {
+
+	it( 'makes a request with the right URL, headers and body and returns the body', async () => {
+		let called = false;
+		const session = new class TestSession extends Session {
+
+			async fetch( resource, options ) {
+				expect( resource ).to.eql( url( 'https://wiki.test/testw/rest.php/bar' ) );
+				expect( options ).to.have.property( 'method', 'PUT' );
+				const headers = getHeaders( options );
+				expect( headers ).to.have.all.keys( 'accept', 'user-agent' );
+				expect( headers.accept ).to.equal( 'text/plain' );
+				expect( headers[ 'user-agent' ] ).to.startWith( 'test-user-agent m3api/' );
+				expect( options.body ).to.eql( new URLSearchParams( { param: 'value' } ) );
+				expect( called ).to.be.false;
+				called = true;
+				return new Response( 'the body', {
+					headers: {
+						'Content-Type': 'text/plain',
+					},
+				} );
+			}
+
+		}( 'https://wiki.test/testw/api.php' );
+
+		const response = await putForText( session, '/bar', new URLSearchParams( {
+			param: 'value',
+		} ), {
+			userAgent: 'test-user-agent',
+		} );
+
+		expect( called ).to.be.true;
+		expect( response ).to.box( 'the body' );
+	} );
+
+	it( 'throws a RestApiClientError for 404', async () => {
+		// the rest of checkResponseStatus() is tested in getJson() above
+		const session = singleRequestSession( 'the body', { status: 404 } );
+
+		await expect( putForText( session, '/foo', new URLSearchParams() ) )
+			.to.be.rejectedWith( RestApiClientError )
+			.and.eventually.deep.include( {
+				status: 404,
+				body: 'the body',
+			} );
+	} );
+
+} );
+
+describe( 'putForHtml', () => {
+
+	it( 'makes a request with the right URL, headers and body and returns the body', async () => {
+		let called = false;
+		const session = new class TestSession extends Session {
+
+			async fetch( resource, options ) {
+				expect( resource ).to.eql( url( 'https://wiki.test/testw/rest.php/bar' ) );
+				expect( options ).to.have.property( 'method', 'PUT' );
+				const headers = getHeaders( options );
+				expect( headers ).to.have.all.keys( 'accept', 'user-agent' );
+				expect( headers.accept ).to.equal( 'text/html' );
+				expect( headers[ 'user-agent' ] ).to.startWith( 'test-user-agent m3api/' );
+				expect( options.body ).to.eql( new URLSearchParams( { param: 'value' } ) );
+				expect( called ).to.be.false;
+				called = true;
+				return new Response( '<p>the body</p>', {
+					headers: {
+						'Content-Type': 'text/html',
+					},
+				} );
+			}
+
+		}( 'https://wiki.test/testw/api.php' );
+
+		const response = await putForHtml( session, '/bar', new URLSearchParams( {
+			param: 'value',
+		} ), {
+			userAgent: 'test-user-agent',
+		} );
+
+		expect( called ).to.be.true;
+		expect( response ).to.box( '<p>the body</p>' );
+	} );
+
+	it( 'throws a RestApiClientError for 404', async () => {
+		// the rest of checkResponseStatus() is tested in getJson() above
+		const session = singleRequestSession( 'the body', { status: 404 } );
+
+		await expect( putForHtml( session, '/foo', new URLSearchParams() ) )
 			.to.be.rejectedWith( RestApiClientError )
 			.and.eventually.deep.include( {
 				status: 404,
