@@ -439,7 +439,7 @@ export async function getJson( session, path, params, options = {} ) {
  * Make a POST request to a REST API endpoint and return the JSON-decoded body.
  *
  * @param {Session} session The m3api session to use for this request.
- * @param {string} path The resourcee path, e.g. `/v1/page`.
+ * @param {string} path The resource path, e.g. `/v1/page`.
  * Does not include the domain, script path, or `rest.php` endpoint.
  * Use the {@link path} tag function to build the path.
  * @param {URLSearchParams} params The request body.
