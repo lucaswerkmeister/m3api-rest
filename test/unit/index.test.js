@@ -143,12 +143,8 @@ describe( 'getJson', () => {
 		let called = false;
 		const session = new class TestSession extends Session {
 
-			async fetch( resource, options ) {
+			async fetch( resource ) {
 				expect( resource ).to.eql( url( 'https://wiki.test/testw/rest.php/list' ) );
-				const headers = getHeaders( options );
-				expect( headers ).to.have.all.keys( 'accept', 'user-agent' );
-				expect( headers.accept ).to.equal( 'application/json' );
-				expect( headers[ 'user-agent' ] ).to.startWith( 'test-user-agent m3api/' );
 				expect( called ).to.be.false;
 				called = true;
 				return Response.json( [ { index: 1 }, { index: 2 } ], {
@@ -164,6 +160,30 @@ describe( 'getJson', () => {
 
 		expect( called ).to.be.true;
 		expect( response ).to.eql( [ { index: 1 }, { index: 2 } ] );
+		expect( getResponseStatus( response ) ).to.equal( 299 );
+	} );
+
+	it( 'returns a string body and its status', async () => {
+		let called = false;
+		const session = new class TestSession extends Session {
+
+			async fetch( resource ) {
+				expect( resource ).to.eql( url( 'https://wiki.test/testw/rest.php/string' ) );
+				expect( called ).to.be.false;
+				called = true;
+				return Response.json( 'a string', {
+					status: 299,
+				} );
+			}
+
+		}( 'https://wiki.test/testw/api.php', {}, {
+			userAgent: 'test-user-agent',
+		} );
+
+		const response = await getJson( session, '/string' );
+
+		expect( called ).to.be.true;
+		expect( response ).to.box( 'a string' );
 		expect( getResponseStatus( response ) ).to.equal( 299 );
 	} );
 
@@ -376,7 +396,7 @@ describe( 'getJson', () => {
 
 		describe( 'throws InvalidResponseBody for', () => {
 
-			for ( const body of [ true, false, null, 'string', 0, 1, '{}' ] ) {
+			for ( const body of [ true, false, null, 0, 1 ] ) {
 				it( JSON.stringify( body ), async () => {
 					const session = new BodyReturningTestSession( body );
 

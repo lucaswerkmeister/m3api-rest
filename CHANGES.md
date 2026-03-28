@@ -8,6 +8,12 @@ but this file may sometimes contain later improvements (e.g. typo fixes).
 ## next (not yet released)
 
 - BREAKING CHANGE:
+  `getJson()` and `postForJson()` can now return `String` instances
+  in addition to objects and arrays,
+  if the server returns JSON-encoded strings.
+  (This is unlikely for MediaWiki core’s REST API endpoints,
+  but common in the Wikibase REST API.)
+- BREAKING CHANGE:
   The `body` property of the `RestApiServerError`,
   `RestApiClientError` and `UnexpectedResponseStatus` classes
   is now documented with the type `*` (“any”) rather than `string|Object`.

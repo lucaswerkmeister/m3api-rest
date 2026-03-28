@@ -411,17 +411,21 @@ export function getResponseStatus( response ) {
  *
  * @private
  * @param {Response} response
- * @return {Object|Array}
+ * @return {Object|Array|String}
  */
 async function getResponseJson( response ) {
 	if ( isResponseJson( response ) ) {
 		const body = await response.json();
+		let bodyWithIdentity;
 		if ( typeof body === 'object' && body !== null ) {
-			responseStatuses.set( body, response.status );
-			return body;
+			bodyWithIdentity = body;
+		} else if ( typeof body === 'string' ) {
+			bodyWithIdentity = new String( body );
 		} else {
 			throw new InvalidResponseBody( body );
 		}
+		responseStatuses.set( bodyWithIdentity, response.status );
+		return bodyWithIdentity;
 	} else {
 		throw new IncompatibleResponseType(
 			'application/json',
@@ -649,7 +653,11 @@ function prepareGetRequest( session, path, params, options ) {
  * @param {Object} [params] Parameters for the request URL.
  * This may include both parameters for the path and query parameters.
  * @param {Options} [options] Request options.
- * @return {Object|Array} The body of the API response, JSON-decoded.
+ * @return {Object|Array|String} The body of the API response, JSON-decoded.
+ * If the API returned a string, then for technical reasons it will be returned
+ * as a `String` instance, not a primitive string value;
+ * you can mostly use it interchangeably with an ordinary string,
+ * or turn it into one by calling its `.valueOf()` method.
  */
 export async function getJson( session, path, params, options = {} ) {
 	const [ url, fetchOptions ] = prepareGetRequest( session, path, params, options );
@@ -763,7 +771,11 @@ function preparePostRequest( session, path, params, options ) {
  * FormData will be sent using the `multipart/form-data` content type.
  * You may also include parameters for the path here.
  * @param {Options} [options] Request options.
- * @return {Object|Array} The body of the API response, JSON-decoded.
+ * @return {Object|Array|String} The body of the API response, JSON-decoded.
+ * If the API returned a string, then for technical reasons it will be returned
+ * as a `String` instance, not a primitive string value;
+ * you can mostly use it interchangeably with an ordinary string,
+ * or turn it into one by calling its `.valueOf()` method.
  */
 export async function postForJson( session, path, params, options = {} ) {
 	const [ url, fetchOptions ] = preparePostRequest( session, path, params, options );

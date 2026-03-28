@@ -63,6 +63,16 @@ describe( 'getJson', function () {
 
 	} );
 
+	it( 'gets Wikibase label', async () => {
+		const session = new Session( 'www.wikidata.org', {}, { userAgent } );
+
+		const itemId = 'Q5';
+		const languageCode = 'en';
+		const label = await getJson( session, path`/wikibase/v1/entities/items/${ itemId }/labels/${ languageCode }` );
+
+		expect( label ).to.box( 'human' );
+	} );
+
 	it( 'throws RestApiClientError for missing page', async () => {
 		const session = new Session( 'en.wikipedia.org', {}, { userAgent } );
 
