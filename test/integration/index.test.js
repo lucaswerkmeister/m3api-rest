@@ -5,6 +5,7 @@ import fs from 'fs/promises';
 import process from 'process';
 import {
 	RestApiClientError,
+	deleteForJson,
 	getHtml,
 	getJson,
 	getResponseStatus,
@@ -175,7 +176,7 @@ describe( 'postForHtml', function () {
 
 } );
 
-describe( 'putForJson', function () {
+describe( 'getJson, putForJson, deleteForJson', function () {
 
 	this.timeout( 60000 );
 
@@ -228,7 +229,7 @@ describe( 'putForJson', function () {
 		}
 	} );
 
-	it( 'edits a page (feat. getJson)', async function () {
+	it( 'edits a page (getJson, putForJson)', async function () {
 		if ( !mediawikiUsername || !mediawikiAccessToken ) {
 			return this.skip();
 		}
@@ -252,6 +253,63 @@ describe( 'putForJson', function () {
 		} );
 		expect( updatedPage ).to.have.nested.property( 'latest.id' );
 		expect( updatedPage.latest.id ).to.be.above( page.latest.id );
+	} );
+
+	function sleep( milliseconds ) {
+		return new Promise( ( resolve ) => {
+			setTimeout( resolve, milliseconds );
+		} );
+	}
+
+	it( 'edits a label (putForJson, getJson, deleteForJson)', async function () {
+		if ( !mediawikiUsername || !mediawikiAccessToken ) {
+			return this.skip();
+		}
+		const session = new Session( 'www.wikidata.beta.wmcloud.org', {}, {
+			accessToken: mediawikiAccessToken,
+			userAgent,
+		} );
+
+		const itemId = 'Q633996';
+		const languageCode = 'de';
+		const label = `m3api-rest-Testdatenobjekt (${ new Date().toISOString() })`;
+		const comment = 'm3api-rest test';
+
+		const putResponse = await putForJson(
+			session,
+			path`/wikibase/v1/entities/items/${ itemId }/labels/${ languageCode }`,
+			{
+				label,
+				// bot: true, // T421631
+				comment,
+			},
+		);
+		expect( putResponse ).to.box( label );
+		expect( getResponseStatus( putResponse ) ).to.be.oneOf( [ 200, 201 ] );
+		await sleep( 1000 ); // work around T421633
+		expect( await getJson(
+			session,
+			path`/wikibase/v1/entities/items/${ itemId }/labels/${ languageCode }`,
+		) ).to.box( label );
+
+		const deleteResponse = await deleteForJson(
+			session,
+			path`/wikibase/v1/entities/items/${ itemId }/labels/${ languageCode }`,
+			{
+				// bot: true, // T421631
+				comment,
+			},
+		);
+		expect( deleteResponse ).to.box( 'Label deleted' ); // hard-coded, never translated
+		expect( getResponseStatus( deleteResponse ) ).to.equal( 200 );
+		await sleep( 1000 ); // work around T421633
+		await expect( getJson(
+			session,
+			path`/wikibase/v1/entities/items/${ itemId }/labels/${ languageCode }`,
+		) ).to.be.rejectedWith( RestApiClientError )
+			.and.eventually.deep.include( {
+				status: 404,
+			} );
 	} );
 
 } );
