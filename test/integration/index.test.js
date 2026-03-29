@@ -9,6 +9,7 @@ import {
 	getHtml,
 	getJson,
 	getResponseStatus,
+	patchForJson,
 	path,
 	postForHtml,
 	postForJson,
@@ -176,7 +177,7 @@ describe( 'postForHtml', function () {
 
 } );
 
-describe( 'getJson, putForJson, deleteForJson', function () {
+describe( 'getJson, putForJson, deleteForJson, patchForJson', function () {
 
 	this.timeout( 60000 );
 
@@ -261,7 +262,7 @@ describe( 'getJson, putForJson, deleteForJson', function () {
 		} );
 	}
 
-	it( 'edits a label (putForJson, getJson, deleteForJson)', async function () {
+	it( 'edits a label (putForJson, getJson, patchForJson, deleteForJson)', async function () {
 		if ( !mediawikiUsername || !mediawikiAccessToken ) {
 			return this.skip();
 		}
@@ -291,6 +292,32 @@ describe( 'getJson, putForJson, deleteForJson', function () {
 			session,
 			path`/wikibase/v1/entities/items/${ itemId }/labels/${ languageCode }`,
 		) ).to.box( label );
+
+		const label2 = `${ label } [bearbeitet]`;
+		const patchResponse = await patchForJson(
+			session,
+			path`/wikibase/v1/entities/items/${ itemId }/labels`,
+			{
+				patch: [
+					{
+						op: 'replace',
+						path: `/${ languageCode }`,
+						value: label2,
+					},
+				],
+				// bot: true, // T421631
+				comment,
+			},
+		);
+		expect( patchResponse ).to.include( {
+			[ languageCode ]: label2,
+		} );
+		expect( getResponseStatus( patchResponse ) ).to.equal( 200 );
+		await sleep( 1000 ); // work around T421633
+		expect( await getJson(
+			session,
+			path`/wikibase/v1/entities/items/${ itemId }/labels/${ languageCode }`,
+		) ).to.box( label2 );
 
 		const deleteResponse = await deleteForJson(
 			session,

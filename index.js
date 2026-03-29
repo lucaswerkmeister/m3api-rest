@@ -1065,3 +1065,107 @@ export async function deleteForHtml( session, path, params, options = {} ) {
 	await checkResponseStatus( response );
 	return await getResponseHtml( response );
 }
+
+/**
+ * Prepare a PATCH request for the given parameters.
+ * Encodes the params into the URL and body and sets up request headers.
+ *
+ * @private
+ * @param {Session} session
+ * @param {string} path
+ * @param {Object} params
+ * @param {Options} options
+ * @return {Array} url and fetchOptions
+ */
+function preparePatchRequest( session, path, params, options ) {
+	const [ url, fetchOptions ] = prepareRequestWithBody( session, path, params, options );
+	return [ url, {
+		...fetchOptions,
+		method: 'PATCH',
+	} ];
+}
+
+/**
+ * Make a PATCH request to a REST API endpoint and return the JSON-decoded body.
+ *
+ * @param {Session} session The m3api session to use for this request.
+ * @param {string} path The resource path, e.g. `/v1/page/{title}`.
+ * Does not include the domain, script path, or `rest.php` endpoint.
+ * Use the {@link path} tag function to build the path.
+ * @param {Object|URLSearchParams|FormData} params The request body.
+ * An Object will be sent using the `application/json` content type;
+ * URLSearchParams will be sent using the `application/x-www-form-urlencoded` content type;
+ * FormData will be sent using the `multipart/form-data` content type.
+ * You may also include parameters for the path here.
+ * Note that all known PATCH endpoints only accept JSON bodies,
+ * so URLSearchParams or FormData params are unlikely to be useful.
+ * @param {Options} [options] Request options.
+ * @return {Object|Array|String} The body of the API response, JSON-decoded.
+ * If the API returned a string, then for technical reasons it will be returned
+ * as a `String` instance, not a primitive string value;
+ * you can mostly use it interchangeably with an ordinary string,
+ * or turn it into one by calling its `.valueOf()` method.
+ */
+export async function patchForJson( session, path, params, options = {} ) {
+	const [ url, fetchOptions ] = preparePatchRequest( session, path, params, options );
+	addHeaderToOptions( fetchOptions, 'accept', 'application/json' );
+	const response = await session.fetch( url, fetchOptions );
+	await checkResponseStatus( response );
+	return await getResponseJson( response );
+}
+
+/**
+ * Make a PATCH request to a REST API endpoint and return the text body.
+ *
+ * @param {Session} session The m3api session to use for this request.
+ * @param {string} path The resource path.
+ * Does not include the domain, script path, or `rest.php` endpoint.
+ * Use the {@link path} tag function to build the path.
+ * @param {Object|URLSearchParams|FormData} params The request body.
+ * An Object will be sent using the `application/json` content type;
+ * URLSearchParams will be sent using the `application/x-www-form-urlencoded` content type;
+ * FormData will be sent using the `multipart/form-data` content type.
+ * You may also include parameters for the path here.
+ * Note that all known PATCH endpoints only accept JSON bodies,
+ * so URLSearchParams or FormData params are unlikely to be useful.
+ * @param {Options} [options] Request options.
+ * @return {String} The body of the API response.
+ * For technical reasons, this is a `String` instance, not a primitive string value;
+ * you can mostly use it interchangeably with an ordinary string,
+ * or turn it into one by calling its `.valueOf()` method.
+ */
+export async function patchForText( session, path, params, options = {} ) {
+	const [ url, fetchOptions ] = preparePatchRequest( session, path, params, options );
+	addHeaderToOptions( fetchOptions, 'accept', 'text/plain' );
+	const response = await session.fetch( url, fetchOptions );
+	await checkResponseStatus( response );
+	return await getResponseText( response );
+}
+
+/**
+ * Make a PATCH request to a REST API endpoint and return the HTML body.
+ *
+ * @param {Session} session The m3api session to use for this request.
+ * @param {string} path The resource path.
+ * Does not include the domain, script path, or `rest.php` endpoint.
+ * Use the {@link path} tag function to build the path.
+ * @param {Object|URLSearchParams|FormData} params The request body.
+ * An Object will be sent using the `application/json` content type;
+ * URLSearchParams will be sent using the `application/x-www-form-urlencoded` content type;
+ * FormData will be sent using the `multipart/form-data` content type.
+ * You may also include parameters for the path here.
+ * Note that all known PATCH endpoints only accept JSON bodies,
+ * so URLSearchParams or FormData params are unlikely to be useful.
+ * @param {Options} [options] Request options.
+ * @return {String} The body of the API response.
+ * For technical reasons, this is a `String` instance, not a primitive string value;
+ * you can mostly use it interchangeably with an ordinary string,
+ * or turn it into one by calling its `.valueOf()` method.
+ */
+export async function patchForHtml( session, path, params, options = {} ) {
+	const [ url, fetchOptions ] = preparePatchRequest( session, path, params, options );
+	addHeaderToOptions( fetchOptions, 'accept', 'text/html' );
+	const response = await session.fetch( url, fetchOptions );
+	await checkResponseStatus( response );
+	return await getResponseHtml( response );
+}
