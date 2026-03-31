@@ -7,6 +7,40 @@ but this file may sometimes contain later improvements (e.g. typo fixes).
 
 ## next (not yet released)
 
+- Major functionality update:
+  beyond `getJson()` and `postForJson()`,
+  m3api-rest now supports the following:
+    - request methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - PATCH
+    - request body content types:
+      - `application/json`
+      - `application/x-www-form-urlencoded`
+      - `multipart/form-data`
+    - response body content types:
+      - `application/json`
+      - `text/plain`
+      - `text/html`
+
+  Yielding the following full list of request functions:
+    - `getJson()`
+    - `getText()`
+    - `getHtml()`
+    - `postForJson()`
+    - `postForText()`
+    - `postForHtml()`
+    - `putForJson()`
+    - `putForText()`
+    - `putForHtml()`
+    - `deleteForJson()`
+    - `deleteForText()`
+    - `deleteForHtml()`
+    - `patchForJson()`
+    - `patchForText()`
+    - `patchForHtml()`
 - BREAKING CHANGE:
   `getJson()` and `postForJson()` can now return `String` instances
   in addition to objects and arrays,
