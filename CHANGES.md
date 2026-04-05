@@ -13,6 +13,7 @@ but this file may sometimes contain later improvements (e.g. typo fixes).
   which will be implemented in a subsequent release.)
 - Introduced a new error type, `IncompatibleResponseType`,
   thrown if the server responds with an incompatible response type.
+- Updated dependencies.
 
 ## v0.1.0 (2026-01-01)
 
