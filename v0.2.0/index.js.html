@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>m3api-rest: Source: index.js</title>
+
+    <script defer src="scripts/prettify/prettify.js"></script>
+    <script defer src="scripts/prettify/lang-css.js"></script>
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+    <link type="text/css" rel="stylesheet" href="version-warning.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <!-- VERSION-WARNING -->
+
+    <h1 class="page-title">Source: index.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * An Error representing an HTTP 5xx response from the REST API.
+ */
+export class RestApiServerError extends Error {
+
+	/**
+	 * @param {number} status The invalid status code received from the API.
+	 * @param {*} body The response body received from the API.
+	 */
+	constructor( status, body ) {
+		super( `REST API server error: ${ status }\n\n${ JSON.stringify( body ) }` );
+
+		if ( Error.captureStackTrace ) {
+			Error.captureStackTrace( this, RestApiServerError );
+		}
+
+		this.name = 'RestApiServerError';
+
+		/**
+		 * The invalid status code received from the API.
+		 *
+		 * @member {number}
+		 */
+		this.status = status;
+
+		/**
+		 * The body of the response.
+		 *
+		 * Depending on the response’s content type,
+		 * this may be a string or a JSON-decoded value.
+		 *
+		 * @member {*}
+		 */
+		this.body = body;
+	}
+
+}
+
+/**
+ * An Error representing an HTTP 4xx response from the REST API.
+ */
+export class RestApiClientError extends Error {
+
+	/**
+	 * @param {number} status The invalid status code received from the API.
+	 * @param {*} body The response body received from the API.
+	 */
+	constructor( status, body ) {
+		super( `REST API client error: ${ status }\n\n${ JSON.stringify( body ) }` );
+
+		if ( Error.captureStackTrace ) {
+			Error.captureStackTrace( this, RestApiClientError );
+		}
+
+		this.name = 'RestApiClientError';
+
+		/**
+		 * The invalid status code received from the API.
+		 *
+		 * @member {number}
+		 */
+		this.status = status;
+
+		/**
+		 * The body of the response.
+		 *
+		 * Depending on the response’s content type,
+		 * this may be a string or a JSON-decoded value.
+		 *
+		 * @member {*}
+		 */
+		this.body = body;
+	}
+
+}
+
+/**
+ * An Error representing an unexpected HTTP response status (1xx or 3xx) from the REST API.
+ * 3xx responses are unexpected because the JavaScript runtime should have followed the redirect;
+ * 1xx responses are unexpected because it should have awaited the non-informational response.
+ */
+export class UnexpectedResponseStatus extends Error {
+
+	/**
+	 * @param {number} status The unexpected status code received from the API.
+	 * @param {*} body The response body received from the API.
+	 */
+	constructor( status, body ) {
+		super( `Unexpected REST API response status: ${ status }\n\n${ JSON.stringify( body ) }` );
+
+		if ( Error.captureStackTrace ) {
+			Error.captureStackTrace( this, UnexpectedResponseStatus );
+		}
+
+		this.name = 'UnexpectedResponseStatus';
+
+		/**
+		 * The unexpected status code received from the API.
+		 *
+		 * @member {number}
+		 */
+		this.status = status;
+
+		/**
+		 * The body of the response.
+		 *
+		 * Depending on the response’s content type,
+		 * this may be a string or a JSON-decoded value.
+		 *
+		 * @member {*}
+		 */
+		this.body = body;
+	}
+
+}
+
+/**
+ * An error representing a HTTP response with a content type incompatible with that requested.
+ * For example, if the API responded with HTML despite JSON having been requested.
+ * Note that, depending on server behavior, this condition may also be represented
+ * by a {@link RestApiClientError} with the status 406 Not Acceptable;
+ * {@link IncompatibleResponseType} is thrown by m3api-rest if the server responded
+ * with a successful status that nevertheless does not match the requested type.
+ */
+export class IncompatibleResponseType extends Error {
+
+	/**
+	 * @param {string} expectedType The expected MIME type.
+	 * @param {string} actualType The actual Content-Type response header.
+	 * @param {*} body The response body received from the API.
+	 */
+	constructor( expectedType, actualType, body ) {
+		super( `Incompatible REST API response type: expected ${ expectedType }, got ${ actualType }` );
+
+		if ( Error.captureStackTrace ) {
+			Error.captureStackTrace( this, IncompatibleResponseType );
+		}
+
+		this.name = 'IncompatibleResponseType';
+
+		/**
+		 * The MIME type expected by m3api-rest based on the method,
+		 * e.g. 'application/json' for {@link getJson} and related functions.
+		 *
+		 * @member {string}
+		 */
+		this.expectedType = expectedType;
+
+		/**
+		 * The actual Content-Type header returned by the server,
+		 * e.g. 'text/html; charset=utf-8; profile="https://www.mediawiki.org/wiki/Specs/HTML/2.8.0"'.
+		 *
+		 * @member {string}
+		 */
+		this.actualType = actualType;
+
+		/**
+		 * The response body.
+		 * The type of this member will depend on the Content-Type returned by the server
+		 * and on whether m3api-rest is able to decode that content type or not.
+		 *
+		 * @member {*}
+		 */
+		this.body = body;
+	}
+
+}
+
+/**
+ * An Error representing an invalid body in the REST API response.
+ */
+export class InvalidResponseBody extends Error {
+
+	/**
+	 * @param {*} body The invalid response body received from the API.
+	 */
+	constructor( body ) {
+		super( `Invalid REST API response body: ${ JSON.stringify( body ) }` );
+
+		if ( Error.captureStackTrace ) {
+			Error.captureStackTrace( this, InvalidResponseBody );
+		}
+
+		this.name = 'InvalidResponseBody';
+
+		/**
+		 * The body of the response.
+		 * Objects and arrays are expected response bodies,
+		 * so an unexpected body is probably some kind of primitive value,
+		 * such as a string, number or boolean.
+		 *
+		 * @member {*}
+		 */
+		this.body = body;
+	}
+
+}
+
+/**
+ * An Error thrown if {@link getResponseStatus} is called with an unknown response.
+ *
+ * {@link getResponseStatus} must be called with a value that was previously returned
+ * by one of the request functions ({@link getJson} etc.).
+ * If this error is thrown, then {@link getResponseStatus} was called with some other value,
+ * and the response status cannot be determined.
+ * This may be the result of calling the function incorrectly.
+ *
+ * The following example shows how {@link getResponseStatus} can be used correctly:
+ * ```
+ * const title = 'Main Page';
+ * const page = await getJson( session, path`/v1/page/${ title }/bare` );
+ * const status = getResponseStatus( page );
+ * const { id, latest } = page;
+ * ```
+ *
+ * For comparison, the following usage of {@link getResponseStatus} is **incorrect**:
+ * ```
+ * const title = 'Main Page';
+ * const { id, latest } = await getJson( session, path`/v1/page/${ title }/bare` );
+ * const status = getResponseStatus( { id, latest } ); // this does not work
+ * ```
+ */
+export class UnknownResponseError extends Error {
+
+	/**
+	 * @param {*} response The unknown response passed into {@link getResponseStatus}.
+	 */
+	constructor( response ) {
+		super( `Unknown REST API response: ${ JSON.stringify( response ) }` );
+
+		if ( Error.captureStackTrace ) {
+			Error.captureStackTrace( this, UnknownResponseError );
+		}
+
+		this.name = 'UnknownResponseError';
+
+		/**
+		 * The unknown response passed into {@link getResponseStatus}.
+		 *
+		 * @member {*}
+		 */
+		this.response = response;
+	}
+
+}
+
+/**
+ * An Error thrown if a request path contains an unsubstituted parameter.
+ *
+ * For example, if {@link getJson} is called with the path `/v1/page/{title}`,
+ * the `title` must be specified in the params, like this:
+ * ```
+ * const title = 'Main Page';
+ * const page = await getJson( session, '/v1/page/{title}', { title } );
+ * ```
+ *
+ * Alternatively, you can directly interpolate the title using {@link path}:
+ * ```
+ * const title = 'Main Page';
+ * const page = await getJson( session, path`/v1/page/${ title }` );
+ * ```
+ *
+ * But the following is invalid and will result in this error being thrown:
+ * ```
+ * const page = await getJson( session, '/v1/page/{title}' ); // which title?
+ * // ^ throws InvalidPathParams
+ * ```
+ *
+ * (Another, less common condition under which this error may be thrown
+ * is that a path parameter was assigned multiple values;
+ * this is possible with functions like {@link postForJson},
+ * where the params of type {@link URLSearchParams} can contain
+ * multiple values for the same name.)
+ */
+export class InvalidPathParams extends Error {
+
+	constructor( message, path, paramName, params ) {
+		super( message );
+
+		if ( Error.captureStackTrace ) {
+			Error.captureStackTrace( this, InvalidPathParams );
+		}
+
+		this.name = 'InvalidPathParams';
+
+		this.path = path;
+
+		this.paramName = paramName;
+
+		this.params = params;
+	}
+
+}
+
+/**
+ * Get the MIME type (e.g. application/json) of the given response.
+ *
+ * @private
+ * @param {Response} response
+ * @return {string} The mime type part of the Content-Type response header,
+ * not including parameters like ;charset=utf-8
+ */
+function getResponseMimeType( response ) {
+	const contentType = response.headers.get( 'Content-Type' );
+	const [ mimeType ] = contentType.split( ';', 1 );
+	// this accepts some technically invalid Content-Type headers
+	// (we don’t check if the part before ; is a valid media-type,
+	// i.e. two tokens separated by a slash,
+	// cf. https://httpwg.org/specs/rfc9110.html#media.type)
+	// because there’s no reason to reject them
+	return mimeType;
+}
+
+/**
+ * Determine whether this response contains JSON
+ * according to its headers.
+ *
+ * @private
+ * @param {Response} response
+ * @return {boolean}
+ */
+function isResponseJson( response ) {
+	const mimeType = getResponseMimeType( response );
+	return mimeType === 'application/json' ||
+		( mimeType.startsWith( 'application/' ) &amp;&amp; mimeType.endsWith( '+json' ) );
+}
+
+/**
+ * Determine whether this response contains text
+ * (“plain text”, but in practice often wikitext) according to its headers.
+ *
+ * @private
+ * @param {Response} response
+ * @return {boolean}
+ */
+function isResponseText( response ) {
+	const mimeType = getResponseMimeType( response );
+	return mimeType === 'text/plain' ||
+		( mimeType.startsWith( 'text/' ) &amp;&amp; mimeType.endsWith( '+plain' ) );
+}
+
+/**
+ * Determine whether this response contains HTML
+ * according to its headers.
+ *
+ * @private
+ * @param {Response} response
+ * @return {boolean}
+ */
+function isResponseHtml( response ) {
+	const mimeType = getResponseMimeType( response );
+	return mimeType === 'text/html' ||
+		( mimeType.startsWith( 'text/' ) &amp;&amp; mimeType.endsWith( '+html' ) );
+}
+
+/**
+ * Get a version of the body of the response to put in an error.
+ *
+ * @private
+ * @param {Response} response
+ * @return {*}
+ */
+async function getResponseBodyForError( response ) {
+	if ( isResponseJson( response ) ) {
+		return await response.json();
+	} else {
+		return await response.text();
+	}
+}
+
+/**
+ * Check the status code of the response and potentially throw an error based on it.
+ *
+ * @private
+ * @param {Response} response
+ */
+async function checkResponseStatus( response ) {
+	const { status } = response;
+	if ( status >= 500 ) {
+		throw new RestApiServerError( status, await getResponseBodyForError( response ) );
+	}
+	if ( status >= 400 ) {
+		throw new RestApiClientError( status, await getResponseBodyForError( response ) );
+	}
+	if ( status >= 300 ) {
+		throw new UnexpectedResponseStatus( status, await getResponseBodyForError( response ) );
+	}
+}
+
+const responseStatuses = new WeakMap();
+
+/**
+ * Get the HTTP status code for this response.
+ *
+ * @param {Object|Array|String} response A response object returned by one of the request functions
+ * ({@link getJson} etc.). Note that it must be exactly the object returned by the function
+ * (compared by identity, i.e. `===`), not a serialization of it or anything similar.
+ * @return {number} The HTTP status code, i.e. an integer between 200 and 599.
+ * (And for a successful response, really only between 200 and 299.)
+ */
+export function getResponseStatus( response ) {
+	const status = responseStatuses.get( response );
+	if ( status === undefined ) {
+		throw new UnknownResponseError( response );
+	}
+	return status;
+}
+
+/**
+ * Get the body of the response and check that it’s valid JSON.
+ *
+ * @private
+ * @param {Response} response
+ * @return {Object|Array|String}
+ */
+async function getResponseJson( response ) {
+	if ( isResponseJson( response ) ) {
+		const body = await response.json();
+		let bodyWithIdentity;
+		if ( typeof body === 'object' &amp;&amp; body !== null ) {
+			bodyWithIdentity = body;
+		} else if ( typeof body === 'string' ) {
+			bodyWithIdentity = new String( body );
+		} else {
+			throw new InvalidResponseBody( body );
+		}
+		responseStatuses.set( bodyWithIdentity, response.status );
+		return bodyWithIdentity;
+	} else {
+		throw new IncompatibleResponseType(
+			'application/json',
+			response.headers.get( 'Content-Type' ),
+			await response.text(),
+		);
+	}
+}
+
+/**
+ * Get the body of the response and check that it’s valid text
+ * (“plain text”, but in practice often wikitext.)
+ *
+ * @private
+ * @param {Response} response
+ * @return {String}
+ */
+async function getResponseText( response ) {
+	if ( isResponseText( response ) ) {
+		const text = new String( await response.text() );
+		responseStatuses.set( text, response.status );
+		return text;
+	} else {
+		throw new IncompatibleResponseType(
+			'text/plain',
+			response.headers.get( 'Content-Type' ),
+			await getResponseBodyForError( response ),
+		);
+	}
+}
+
+/**
+ * Get the body of the response and check that it’s valid HTML.
+ *
+ * @private
+ * @param {Response} response
+ * @return {String}
+ */
+async function getResponseHtml( response ) {
+	if ( isResponseHtml( response ) ) {
+		const html = new String( await response.text() );
+		responseStatuses.set( html, response.status );
+		return html;
+	} else {
+		throw new IncompatibleResponseType(
+			'text/html',
+			response.headers.get( 'Content-Type' ),
+			await getResponseBodyForError( response ),
+		);
+	}
+}
+
+/**
+ * Encode a path for a REST API endpoint.
+ *
+ * This function should be used as a tag for a tagged template literal (template string).
+ * Usage example:
+ * ```
+ * const title = 'AC/DC';
+ * const json = await getJson( session, path`/v1/page/${ title }` );
+ * // makes a request to /v1/page/AC%2FDC
+ * ```
+ *
+ * Each parameter in the template can either be a string or an object of query params,
+ * for example:
+ * ```
+ * const id = 376020677;
+ * const params = { stash: false, flavor: 'view' };
+ * const json = await getJson( session, path`/v1/revision/${ id }/html?${ params }` );
+ * ```
+ *
+ * Alternatively, query params for GET requests can be specified separately:
+ * ```
+ * const id = 376020677;
+ * const json = await getJson( session, path`/v1/revision/${ id }/html`, {
+ *     stash: false,
+ *     flavor: 'view',
+ * } );
+ * ```
+ *
+ * (Calling this function like a regular function is not very useful,
+ * so you can ignore the parameters documented below.)
+ *
+ * @param {string|object[]} strings
+ * @param {Array} values
+ * @return {string}
+ */
+export function path( strings, ...values ) {
+	return String.raw( { raw: strings }, ...values.map( ( value ) => {
+		if ( typeof value === 'object' ) {
+			return new URLSearchParams( value );
+		}
+		return encodeURIComponent( value );
+	} ) );
+}
+
+/**
+ * Substitute template expressions in the path,
+ * taking values from the given params.
+ *
+ * @private
+ * @param {string} path The path with optional `{param}` expressions.
+ * @param {Object|URLSearchParams|FormData} params The input params. Not modified.
+ * @return {Object} The potentially modified path and params.
+ */
+function substitutePathParams( path, params ) {
+	let copiedParams = null;
+	const substitutedPath = path.replace( /\{[^{}]+\}/g, ( match ) => {
+		const paramName = match.slice( 1, -1 );
+		if ( params instanceof URLSearchParams ) {
+			if ( copiedParams === null ) {
+				copiedParams = new URLSearchParams( params );
+			}
+			const values = copiedParams.getAll( paramName );
+			if ( values.length !== 1 ) {
+				throw new InvalidPathParams(
+					values.length === 0 ?
+						`Unspecified path param ${ match }` :
+						`Ambiguous path param ${ match }`,
+					path,
+					paramName,
+					params,
+				);
+			}
+			copiedParams.delete( paramName );
+			return encodeURIComponent( values[ 0 ] );
+		} else if ( params instanceof FormData ) {
+			if ( copiedParams === null ) {
+				copiedParams = new FormData();
+				for ( const [ name, value ] of params.entries() ) {
+					copiedParams.append( name, value );
+				}
+			}
+			const values = copiedParams.getAll( paramName );
+			if ( values.length !== 1 ) {
+				throw new InvalidPathParams(
+					values.length === 0 ?
+						`Unspecified path param ${ match }` :
+						`Ambiguous path param ${ match }`,
+					path,
+					paramName,
+					params,
+				);
+			}
+			copiedParams.delete( paramName );
+			const value = values[ 0 ];
+			if ( value instanceof Blob ) {
+				// in practice, value will almost always be a File here,
+				// as FormData will turn any Blob into a File (except on old Node versions),
+				// hence the unspecific “Blob or File” in the message
+				throw new InvalidPathParams(
+					`Path param ${ match } cannot be a Blob or File`,
+					path,
+					paramName,
+					params,
+				);
+			}
+			return encodeURIComponent( value );
+		} else {
+			if ( copiedParams === null ) {
+				copiedParams = { ...params };
+			}
+			const value = copiedParams[ paramName ];
+			if ( value === undefined ) {
+				throw new InvalidPathParams(
+					`Unspecified path param ${ match }`,
+					path,
+					paramName,
+					params,
+				);
+			}
+			delete copiedParams[ paramName ];
+			return encodeURIComponent( value );
+		}
+	} );
+
+	return { path: substitutedPath, params: copiedParams || params };
+}
+
+/**
+ * Convenience function to add a request header to the given `fetch()` options.
+ *
+ * @private
+ * @param {RequestInit} fetchOptions
+ * @param {string} name
+ * @param {string} value
+ */
+function addHeaderToOptions( fetchOptions, name, value ) {
+	fetchOptions.headers = new Headers( fetchOptions.headers );
+	fetchOptions.headers.set( name, value );
+}
+
+/**
+ * Prepare a GET request for the given parameters.
+ * Encodes the params into the URL and sets up request headers.
+ *
+ * @private
+ * @param {Session} session
+ * @param {string} path
+ * @param {Object} params
+ * @param {Options} options
+ * @return {Array} url and fetchOptions
+ */
+function prepareGetRequest( session, path, params, options ) {
+	( { path, params } = substitutePathParams( path, params ) );
+	const restUrl = session.apiUrl.replace( /api\.php$/, 'rest.php' );
+	const url = new URL( restUrl + path );
+	for ( const [ name, value ] of Object.entries( params || {} ) ) {
+		url.searchParams.append( name, value );
+	}
+	const fetchOptions = {
+		method: 'GET',
+		headers: session.getRequestHeaders( options ),
+	};
+	return [ url, fetchOptions ];
+}
+
+/**
+ * Make a GET request to a REST API endpoint and return the JSON-decoded body.
+ *
+ * @param {Session} session The m3api session to use for this request.
+ * @param {string} path The resource path, e.g. `/v1/search`.
+ * Does not include the domain, script path, or `rest.php` endpoint.
+ * Use the {@link path} tag function to build the path.
+ * @param {Object} [params] Parameters for the request URL.
+ * This may include both parameters for the path and query parameters.
+ * @param {Options} [options] Request options.
+ * @return {Object|Array|String} The body of the API response, JSON-decoded.
+ * If the API returned a string, then for technical reasons it will be returned
+ * as a `String` instance, not a primitive string value;
+ * you can mostly use it interchangeably with an ordinary string,
+ * or turn it into one by calling its `.valueOf()` method.
+ */
+export async function getJson( session, path, params, options = {} ) {
+	const [ url, fetchOptions ] = prepareGetRequest( session, path, params, options );
+	addHeaderToOptions( fetchOptions, 'accept', 'application/json' );
+	const response = await session.fetch( url, fetchOptions );
+	await checkResponseStatus( response );
+	return await getResponseJson( response );
+}
+
+/**
+ * Make a GET request to a REST API endpoint and return the text body.
+ *
+ * @param {Session} session The m3api session to use for this request.
+ * @param {string} path The resource path.
+ * Does not include the domain, script path, or `rest.php` endpoint.
+ * Use the {@link path} tag function to build the path.
+ * @param {Object} [params] Parameters for the request URL.
+ * This may include both parameters for the path and query parameters.
+ * @param {Options} [options] Request options.
+ * @return {String} The body of the API response.
+ * For technical reasons, this is a `String` instance, not a primitive string value;
+ * you can mostly use it interchangeably with an ordinary string,
+ * or turn it into one by calling its `.valueOf()` method.
+ */
+export async function getText( session, path, params, options = {} ) {
+	const [ url, fetchOptions ] = prepareGetRequest( session, path, params, options );
+	addHeaderToOptions( fetchOptions, 'accept', 'text/plain' );
+	const response = await session.fetch( url, fetchOptions );
+	await checkResponseStatus( response );
+	return await getResponseText( response );
+}
+
+/**
+ * Make a GET request to a REST API endpoint and return the HTML body.
+ *
+ * @param {Session} session The m3api session to use for this request.
+ * @param {string} path The resource path, e.g. `/v1/page/{title}/html`.
+ * Does not include the domain, script path, or `rest.php` endpoint.
+ * Use the {@link path} tag function to build the path.
+ * @param {Object} [params] Parameters for the request URL.
+ * This may include both parameters for the path and query parameters.
+ * @param {Options} [options] Request options.
+ * @return {String} The body of the API response.
+ * For technical reasons, this is a `String` instance, not a primitive string value;
+ * you can mostly use it interchangeably with an ordinary string,
+ * or turn it into one by calling its `.valueOf()` method.
+ */
+export async function getHtml( session, path, params, options = {} ) {
+	const [ url, fetchOptions ] = prepareGetRequest( session, path, params, options );
+	addHeaderToOptions( fetchOptions, 'accept', 'text/html' );
+	const response = await session.fetch( url, fetchOptions );
+	await checkResponseStatus( response );
+	return await getResponseHtml( response );
+}
+
+/**
+ * Encode a body for the request to the server.
+ *
+ * @param {Object|URLSearchParams|FormData} body
+ * @return {RequestInit} To be mixed into the `fetch()` options.
+ */
+function encodeBody( body ) {
+	if ( body instanceof URLSearchParams || body instanceof FormData ) {
+		return { body };
+	} else {
+		return {
+			body: JSON.stringify( body ),
+			headers: {
+				'Content-Type': 'application/json',
+			},
+		};
+	}
+}
+
+/**
+ * Prepare a non-GET request for the given parameters.
+ * Encodes the params into the URL and body and sets up request headers.
+ * The caller must set the specific method afterwards.
+ *
+ * @private
+ * @param {Session} session
+ * @param {string} path
+ * @param {Object} params
+ * @param {Options} options
+ * @return {Array} url and fetchOptions
+ */
+function prepareRequestWithBody( session, path, params, options ) {
+	( { path, params } = substitutePathParams( path, params ) );
+	const restUrl = session.apiUrl.replace( /api\.php$/, 'rest.php' );
+	const url = new URL( restUrl + path );
+	const fetchOptions = {
+		method: '', // trigger a TypeError in fetch() if caller does not override method
+		...encodeBody( params ),
+	};
+	fetchOptions.headers = new Headers( fetchOptions.headers );
+	for ( const [ name, value ] of Object.entries( session.getRequestHeaders( options ) ) ) {
+		fetchOptions.headers.set( name, value );
+	}
+	return [ url, fetchOptions ];
+}
+
+/**
+ * Prepare a POST request for the given parameters.
+ * Encodes the params into the URL and body and sets up request headers.
+ *
+ * @private
+ * @param {Session} session
+ * @param {string} path
+ * @param {Object} params
+ * @param {Options} options
+ * @return {Array} url and fetchOptions
+ */
+function preparePostRequest( session, path, params, options ) {
+	const [ url, fetchOptions ] = prepareRequestWithBody( session, path, params, options );
+	return [ url, {
+		...fetchOptions,
+		method: 'POST',
+	} ];
+}
+
+/**
+ * Make a POST request to a REST API endpoint and return the JSON-decoded body.
+ *
+ * @param {Session} session The m3api session to use for this request.
+ * @param {string} path The resource path, e.g. `/v1/page`.
+ * Does not include the domain, script path, or `rest.php` endpoint.
+ * Use the {@link path} tag function to build the path.
+ * @param {Object|URLSearchParams|FormData} params The request body.
+ * An Object will be sent using the `application/json` content type;
+ * URLSearchParams will be sent using the `application/x-www-form-urlencoded` content type;
+ * FormData will be sent using the `multipart/form-data` content type.
+ * You may also include parameters for the path here.
+ * @param {Options} [options] Request options.
+ * @return {Object|Array|String} The body of the API response, JSON-decoded.
+ * If the API returned a string, then for technical reasons it will be returned
+ * as a `String` instance, not a primitive string value;
+ * you can mostly use it interchangeably with an ordinary string,
+ * or turn it into one by calling its `.valueOf()` method.
+ */
+export async function postForJson( session, path, params, options = {} ) {
+	const [ url, fetchOptions ] = preparePostRequest( session, path, params, options );
+	// skip this for now due to T412610
+	// addHeaderToOptions( fetchOptions, 'accept', 'application/json' );
+	const response = await session.fetch( url, fetchOptions );
+	await checkResponseStatus( response );
+	return await getResponseJson( response );
+}
+
+/**
+ * Make a POST request to a REST API endpoint and return the text body.
+ *
+ * @param {Session} session The m3api session to use for this request.
+ * @param {string} path The resource path, e.g. `/v1/transform/html/to/wikitext`.
+ * Does not include the domain, script path, or `rest.php` endpoint.
+ * Use the {@link path} tag function to build the path.
+ * @param {Object|URLSearchParams|FormData} params The request body.
+ * An Object will be sent using the `application/json` content type;
+ * URLSearchParams will be sent using the `application/x-www-form-urlencoded` content type;
+ * FormData will be sent using the `multipart/form-data` content type.
+ * You may also include parameters for the path here.
+ * @param {Options} [options] Request options.
+ * @return {String} The body of the API response.
+ * For technical reasons, this is a `String` instance, not a primitive string value;
+ * you can mostly use it interchangeably with an ordinary string,
+ * or turn it into one by calling its `.valueOf()` method.
+ */
+export async function postForText( session, path, params, options = {} ) {
+	const [ url, fetchOptions ] = preparePostRequest( session, path, params, options );
+	addHeaderToOptions( fetchOptions, 'accept', 'text/plain' );
+	const response = await session.fetch( url, fetchOptions );
+	await checkResponseStatus( response );
+	return await getResponseText( response );
+}
+
+/**
+ * Make a POST request to a REST API endpoint and return the HTML body.
+ *
+ * @param {Session} session The m3api session to use for this request.
+ * @param {string} path The resource path, e.g. `/v1/transform/wikitext/to/html`.
+ * Does not include the domain, script path, or `rest.php` endpoint.
+ * Use the {@link path} tag function to build the path.
+ * @param {Object|URLSearchParams|FormData} params The request body.
+ * An Object will be sent using the `application/json` content type;
+ * URLSearchParams will be sent using the `application/x-www-form-urlencoded` content type;
+ * FormData will be sent using the `multipart/form-data` content type.
+ * You may also include parameters for the path here.
+ * @param {Options} [options] Request options.
+ * @return {String} The body of the API response.
+ * For technical reasons, this is a `String` instance, not a primitive string value;
+ * you can mostly use it interchangeably with an ordinary string,
+ * or turn it into one by calling its `.valueOf()` method.
+ */
+export async function postForHtml( session, path, params, options = {} ) {
+	const [ url, fetchOptions ] = preparePostRequest( session, path, params, options );
+	addHeaderToOptions( fetchOptions, 'accept', 'text/html' );
+	const response = await session.fetch( url, fetchOptions );
+	await checkResponseStatus( response );
+	return await getResponseHtml( response );
+}
+
+/**
+ * Prepare a PUT request for the given parameters.
+ * Encodes the params into the URL and body and sets up request headers.
+ *
+ * @private
+ * @param {Session} session
+ * @param {string} path
+ * @param {Object} params
+ * @param {Options} options
+ * @return {Array} url and fetchOptions
+ */
+function preparePutRequest( session, path, params, options ) {
+	const [ url, fetchOptions ] = prepareRequestWithBody( session, path, params, options );
+	return [ url, {
+		...fetchOptions,
+		method: 'PUT',
+	} ];
+}
+
+/**
+ * Make a PUT request to a REST API endpoint and return the JSON-decoded body.
+ *
+ * @param {Session} session The m3api session to use for this request.
+ * @param {string} path The resource path, e.g. `/v1/page/{title}`.
+ * Does not include the domain, script path, or `rest.php` endpoint.
+ * Use the {@link path} tag function to build the path.
+ * @param {Object|URLSearchParams|FormData} params The request body.
+ * An Object will be sent using the `application/json` content type;
+ * URLSearchParams will be sent using the `application/x-www-form-urlencoded` content type;
+ * FormData will be sent using the `multipart/form-data` content type.
+ * You may also include parameters for the path here.
+ * Note that all known PUT endpoints only accept JSON bodies,
+ * so URLSearchParams or FormData params are unlikely to be useful.
+ * @param {Options} [options] Request options.
+ * @return {Object|Array|String} The body of the API response, JSON-decoded.
+ * If the API returned a string, then for technical reasons it will be returned
+ * as a `String` instance, not a primitive string value;
+ * you can mostly use it interchangeably with an ordinary string,
+ * or turn it into one by calling its `.valueOf()` method.
+ */
+export async function putForJson( session, path, params, options = {} ) {
+	const [ url, fetchOptions ] = preparePutRequest( session, path, params, options );
+	addHeaderToOptions( fetchOptions, 'accept', 'application/json' );
+	const response = await session.fetch( url, fetchOptions );
+	await checkResponseStatus( response );
+	return await getResponseJson( response );
+}
+
+/**
+ * Make a PUT request to a REST API endpoint and return the text body.
+ *
+ * @param {Session} session The m3api session to use for this request.
+ * @param {string} path The resource path.
+ * Does not include the domain, script path, or `rest.php` endpoint.
+ * Use the {@link path} tag function to build the path.
+ * @param {Object|URLSearchParams|FormData} params The request body.
+ * An Object will be sent using the `application/json` content type;
+ * URLSearchParams will be sent using the `application/x-www-form-urlencoded` content type;
+ * FormData will be sent using the `multipart/form-data` content type.
+ * You may also include parameters for the path here.
+ * Note that all known PUT endpoints only accept JSON bodies,
+ * so URLSearchParams or FormData params are unlikely to be useful.
+ * @param {Options} [options] Request options.
+ * @return {String} The body of the API response.
+ * For technical reasons, this is a `String` instance, not a primitive string value;
+ * you can mostly use it interchangeably with an ordinary string,
+ * or turn it into one by calling its `.valueOf()` method.
+ */
+export async function putForText( session, path, params, options = {} ) {
+	const [ url, fetchOptions ] = preparePutRequest( session, path, params, options );
+	addHeaderToOptions( fetchOptions, 'accept', 'text/plain' );
+	const response = await session.fetch( url, fetchOptions );
+	await checkResponseStatus( response );
+	return await getResponseText( response );
+}
+
+/**
+ * Make a PUT request to a REST API endpoint and return the HTML body.
+ *
+ * @param {Session} session The m3api session to use for this request.
+ * @param {string} path The resource path.
+ * Does not include the domain, script path, or `rest.php` endpoint.
+ * Use the {@link path} tag function to build the path.
+ * @param {Object|URLSearchParams|FormData} params The request body.
+ * An Object will be sent using the `application/json` content type;
+ * URLSearchParams will be sent using the `application/x-www-form-urlencoded` content type;
+ * FormData will be sent using the `multipart/form-data` content type.
+ * You may also include parameters for the path here.
+ * Note that all known PUT endpoints only accept JSON bodies,
+ * so URLSearchParams or FormData params are unlikely to be useful.
+ * @param {Options} [options] Request options.
+ * @return {String} The body of the API response.
+ * For technical reasons, this is a `String` instance, not a primitive string value;
+ * you can mostly use it interchangeably with an ordinary string,
+ * or turn it into one by calling its `.valueOf()` method.
+ */
+export async function putForHtml( session, path, params, options = {} ) {
+	const [ url, fetchOptions ] = preparePutRequest( session, path, params, options );
+	addHeaderToOptions( fetchOptions, 'accept', 'text/html' );
+	const response = await session.fetch( url, fetchOptions );
+	await checkResponseStatus( response );
+	return await getResponseHtml( response );
+}
+
+/**
+ * Prepare a DELETE request for the given parameters.
+ * Encodes the params into the URL and body and sets up request headers.
+ *
+ * @private
+ * @param {Session} session
+ * @param {string} path
+ * @param {Object} params
+ * @param {Options} options
+ * @return {Array} url and fetchOptions
+ */
+function prepareDeleteRequest( session, path, params, options ) {
+	const [ url, fetchOptions ] = prepareRequestWithBody( session, path, params, options );
+	return [ url, {
+		...fetchOptions,
+		method: 'DELETE',
+	} ];
+}
+
+/**
+ * Make a DELETE request to a REST API endpoint and return the JSON-decoded body.
+ *
+ * @param {Session} session The m3api session to use for this request.
+ * @param {string} path The resource path, e.g. `/v1/page/{title}`.
+ * Does not include the domain, script path, or `rest.php` endpoint.
+ * Use the {@link path} tag function to build the path.
+ * @param {Object|URLSearchParams|FormData} params The request body.
+ * An Object will be sent using the `application/json` content type;
+ * URLSearchParams will be sent using the `application/x-www-form-urlencoded` content type;
+ * FormData will be sent using the `multipart/form-data` content type.
+ * You may also include parameters for the path here.
+ * Note that all known DELETE endpoints only accept JSON bodies,
+ * so URLSearchParams or FormData params are unlikely to be useful.
+ * @param {Options} [options] Request options.
+ * @return {Object|Array|String} The body of the API response, JSON-decoded.
+ * If the API returned a string, then for technical reasons it will be returned
+ * as a `String` instance, not a primitive string value;
+ * you can mostly use it interchangeably with an ordinary string,
+ * or turn it into one by calling its `.valueOf()` method.
+ */
+export async function deleteForJson( session, path, params, options = {} ) {
+	const [ url, fetchOptions ] = prepareDeleteRequest( session, path, params, options );
+	addHeaderToOptions( fetchOptions, 'accept', 'application/json' );
+	const response = await session.fetch( url, fetchOptions );
+	await checkResponseStatus( response );
+	return await getResponseJson( response );
+}
+
+/**
+ * Make a DELETE request to a REST API endpoint and return the text body.
+ *
+ * @param {Session} session The m3api session to use for this request.
+ * @param {string} path The resource path.
+ * Does not include the domain, script path, or `rest.php` endpoint.
+ * Use the {@link path} tag function to build the path.
+ * @param {Object|URLSearchParams|FormData} params The request body.
+ * An Object will be sent using the `application/json` content type;
+ * URLSearchParams will be sent using the `application/x-www-form-urlencoded` content type;
+ * FormData will be sent using the `multipart/form-data` content type.
+ * You may also include parameters for the path here.
+ * Note that all known DELETE endpoints only accept JSON bodies,
+ * so URLSearchParams or FormData params are unlikely to be useful.
+ * @param {Options} [options] Request options.
+ * @return {String} The body of the API response.
+ * For technical reasons, this is a `String` instance, not a primitive string value;
+ * you can mostly use it interchangeably with an ordinary string,
+ * or turn it into one by calling its `.valueOf()` method.
+ */
+export async function deleteForText( session, path, params, options = {} ) {
+	const [ url, fetchOptions ] = prepareDeleteRequest( session, path, params, options );
+	addHeaderToOptions( fetchOptions, 'accept', 'text/plain' );
+	const response = await session.fetch( url, fetchOptions );
+	await checkResponseStatus( response );
+	return await getResponseText( response );
+}
+
+/**
+ * Make a DELETE request to a REST API endpoint and return the HTML body.
+ *
+ * @param {Session} session The m3api session to use for this request.
+ * @param {string} path The resource path.
+ * Does not include the domain, script path, or `rest.php` endpoint.
+ * Use the {@link path} tag function to build the path.
+ * @param {Object|URLSearchParams|FormData} params The request body.
+ * An Object will be sent using the `application/json` content type;
+ * URLSearchParams will be sent using the `application/x-www-form-urlencoded` content type;
+ * FormData will be sent using the `multipart/form-data` content type.
+ * You may also include parameters for the path here.
+ * Note that all known DELETE endpoints only accept JSON bodies,
+ * so URLSearchParams or FormData params are unlikely to be useful.
+ * @param {Options} [options] Request options.
+ * @return {String} The body of the API response.
+ * For technical reasons, this is a `String` instance, not a primitive string value;
+ * you can mostly use it interchangeably with an ordinary string,
+ * or turn it into one by calling its `.valueOf()` method.
+ */
+export async function deleteForHtml( session, path, params, options = {} ) {
+	const [ url, fetchOptions ] = prepareDeleteRequest( session, path, params, options );
+	addHeaderToOptions( fetchOptions, 'accept', 'text/html' );
+	const response = await session.fetch( url, fetchOptions );
+	await checkResponseStatus( response );
+	return await getResponseHtml( response );
+}
+
+/**
+ * Prepare a PATCH request for the given parameters.
+ * Encodes the params into the URL and body and sets up request headers.
+ *
+ * @private
+ * @param {Session} session
+ * @param {string} path
+ * @param {Object} params
+ * @param {Options} options
+ * @return {Array} url and fetchOptions
+ */
+function preparePatchRequest( session, path, params, options ) {
+	const [ url, fetchOptions ] = prepareRequestWithBody( session, path, params, options );
+	return [ url, {
+		...fetchOptions,
+		method: 'PATCH',
+	} ];
+}
+
+/**
+ * Make a PATCH request to a REST API endpoint and return the JSON-decoded body.
+ *
+ * @param {Session} session The m3api session to use for this request.
+ * @param {string} path The resource path, e.g. `/v1/page/{title}`.
+ * Does not include the domain, script path, or `rest.php` endpoint.
+ * Use the {@link path} tag function to build the path.
+ * @param {Object|URLSearchParams|FormData} params The request body.
+ * An Object will be sent using the `application/json` content type;
+ * URLSearchParams will be sent using the `application/x-www-form-urlencoded` content type;
+ * FormData will be sent using the `multipart/form-data` content type.
+ * You may also include parameters for the path here.
+ * Note that all known PATCH endpoints only accept JSON bodies,
+ * so URLSearchParams or FormData params are unlikely to be useful.
+ * @param {Options} [options] Request options.
+ * @return {Object|Array|String} The body of the API response, JSON-decoded.
+ * If the API returned a string, then for technical reasons it will be returned
+ * as a `String` instance, not a primitive string value;
+ * you can mostly use it interchangeably with an ordinary string,
+ * or turn it into one by calling its `.valueOf()` method.
+ */
+export async function patchForJson( session, path, params, options = {} ) {
+	const [ url, fetchOptions ] = preparePatchRequest( session, path, params, options );
+	addHeaderToOptions( fetchOptions, 'accept', 'application/json' );
+	const response = await session.fetch( url, fetchOptions );
+	await checkResponseStatus( response );
+	return await getResponseJson( response );
+}
+
+/**
+ * Make a PATCH request to a REST API endpoint and return the text body.
+ *
+ * @param {Session} session The m3api session to use for this request.
+ * @param {string} path The resource path.
+ * Does not include the domain, script path, or `rest.php` endpoint.
+ * Use the {@link path} tag function to build the path.
+ * @param {Object|URLSearchParams|FormData} params The request body.
+ * An Object will be sent using the `application/json` content type;
+ * URLSearchParams will be sent using the `application/x-www-form-urlencoded` content type;
+ * FormData will be sent using the `multipart/form-data` content type.
+ * You may also include parameters for the path here.
+ * Note that all known PATCH endpoints only accept JSON bodies,
+ * so URLSearchParams or FormData params are unlikely to be useful.
+ * @param {Options} [options] Request options.
+ * @return {String} The body of the API response.
+ * For technical reasons, this is a `String` instance, not a primitive string value;
+ * you can mostly use it interchangeably with an ordinary string,
+ * or turn it into one by calling its `.valueOf()` method.
+ */
+export async function patchForText( session, path, params, options = {} ) {
+	const [ url, fetchOptions ] = preparePatchRequest( session, path, params, options );
+	addHeaderToOptions( fetchOptions, 'accept', 'text/plain' );
+	const response = await session.fetch( url, fetchOptions );
+	await checkResponseStatus( response );
+	return await getResponseText( response );
+}
+
+/**
+ * Make a PATCH request to a REST API endpoint and return the HTML body.
+ *
+ * @param {Session} session The m3api session to use for this request.
+ * @param {string} path The resource path.
+ * Does not include the domain, script path, or `rest.php` endpoint.
+ * Use the {@link path} tag function to build the path.
+ * @param {Object|URLSearchParams|FormData} params The request body.
+ * An Object will be sent using the `application/json` content type;
+ * URLSearchParams will be sent using the `application/x-www-form-urlencoded` content type;
+ * FormData will be sent using the `multipart/form-data` content type.
+ * You may also include parameters for the path here.
+ * Note that all known PATCH endpoints only accept JSON bodies,
+ * so URLSearchParams or FormData params are unlikely to be useful.
+ * @param {Options} [options] Request options.
+ * @return {String} The body of the API response.
+ * For technical reasons, this is a `String` instance, not a primitive string value;
+ * you can mostly use it interchangeably with an ordinary string,
+ * or turn it into one by calling its `.valueOf()` method.
+ */
+export async function patchForHtml( session, path, params, options = {} ) {
+	const [ url, fetchOptions ] = preparePatchRequest( session, path, params, options );
+	addHeaderToOptions( fetchOptions, 'accept', 'text/html' );
+	const response = await session.fetch( url, fetchOptions );
+	await checkResponseStatus( response );
+	return await getResponseHtml( response );
+}
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="IncompatibleResponseType.html">IncompatibleResponseType</a></li><li><a href="InvalidPathParams.html">InvalidPathParams</a></li><li><a href="InvalidResponseBody.html">InvalidResponseBody</a></li><li><a href="RestApiClientError.html">RestApiClientError</a></li><li><a href="RestApiServerError.html">RestApiServerError</a></li><li><a href="UnexpectedResponseStatus.html">UnexpectedResponseStatus</a></li><li><a href="UnknownResponseError.html">UnknownResponseError</a></li></ul><h3>Global</h3><ul><li><a href="global.html#deleteForHtml">deleteForHtml</a></li><li><a href="global.html#deleteForJson">deleteForJson</a></li><li><a href="global.html#deleteForText">deleteForText</a></li><li><a href="global.html#encodeBody">encodeBody</a></li><li><a href="global.html#getHtml">getHtml</a></li><li><a href="global.html#getJson">getJson</a></li><li><a href="global.html#getResponseStatus">getResponseStatus</a></li><li><a href="global.html#getText">getText</a></li><li><a href="global.html#patchForHtml">patchForHtml</a></li><li><a href="global.html#patchForJson">patchForJson</a></li><li><a href="global.html#patchForText">patchForText</a></li><li><a href="global.html#path">path</a></li><li><a href="global.html#postForHtml">postForHtml</a></li><li><a href="global.html#postForJson">postForJson</a></li><li><a href="global.html#postForText">postForText</a></li><li><a href="global.html#putForHtml">putForHtml</a></li><li><a href="global.html#putForJson">putForJson</a></li><li><a href="global.html#putForText">putForText</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a>
+</footer>
+
+<script>document.addEventListener('DOMContentLoaded', function () { prettyPrint(); });</script>
+<script async src="scripts/linenumber.js"></script>
+</body>
+</html>

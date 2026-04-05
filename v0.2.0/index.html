@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>m3api-rest: Home</title>
+
+    <script defer src="scripts/prettify/prettify.js"></script>
+    <script defer src="scripts/prettify/lang-css.js"></script>
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+    <link type="text/css" rel="stylesheet" href="version-warning.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <!-- VERSION-WARNING -->
+
+    <h1 class="page-title">Home</h1>
+
+    
+
+
+
+    
+
+
+    <h3> </h3>
+
+
+
+
+
+
+
+
+
+
+    
+
+
+
+
+    <section>
+        <article><h1>m3api-rest</h1>
+<p>m3api-rest is an extension package for <a href="https://www.npmjs.com/package/m3api">m3api</a>,
+allowing you to interact with the MediaWiki REST API.</p>
+<h2>Usage examples</h2>
+<p>Before digging into all the available features in m3api-rest,
+let’s start with some examples for commonly used functions.</p>
+<h3><code>getJson</code></h3>
+<p>Make a GET request for some JSON data.</p>
+<pre class="prettyprint source lang-js"><code>import Session from 'm3api';
+import { getJson, path } from 'm3api-rest';
+
+const session = new Session( 'en.wikipedia.org', {}, {
+	userAgent: 'm3api-rest-README-example',
+} );
+
+const title = 'Main page';
+const page = await getJson( session, path`/v1/page/${ title }` );
+console.log( page ); // { id: 217225, title: 'Main page', ... }
+</code></pre>
+<pre class="prettyprint source lang-js"><code>const searchResults = await getJson( session, '/v1/search/page', {
+	q: 'search query',
+	limit: 10,
+} );
+console.log( searchResults ); // { pages: [ { title: 'Web query', ... }, ... ] }
+</code></pre>
+<p>See also below for details on the different ways to specify parameters.</p>
+<h3><code>postForJson</code></h3>
+<p>Make a POST request that will return some JSON data.</p>
+<pre class="prettyprint source lang-js"><code>const session = new Session( 'test.wikipedia.org', {}, {
+	userAgent: 'm3api-rest-README-example',
+	accessToken: ...,
+} );
+
+const title = 'Test page',
+	source = 'Test page contents',
+	comment = 'test edit';
+const response = await postForJson( session, '/v1/page', {
+	title,
+	source,
+	comment,
+} );
+console.log( `Created new page with page ID ${ response.id }` );
+</code></pre>
+<pre class="prettyprint source lang-js"><code>const wikitext = '== ==\nThis is &lt;span id=id>bad&lt;/span> &lt;span id=id>wikitext&lt;/span>.';
+const lints = await postForJson( session, '/v1/transform/wikitext/to/lint', new URLSearchParams( {
+	wikitext,
+} ) );
+console.log( lints ); // [ { type: 'empty-heading', ... }, { type: 'duplicate-ids', ... } ]
+</code></pre>
+<h3><code>putForJson</code></h3>
+<p>Make a PUT request that will return some JSON data.</p>
+<pre class="prettyprint source lang-js"><code>// session should still have an accessToken, like in the previous example
+const title = 'Test page';
+const page = await getJson( session, path`/v1/page/${ title }` );
+const updatedPage = await putForJson( session, path`/v1/page/${ title }`, {
+	source: page.source.replace( /privledge/g, 'privilege' ), // example typo fix
+	comment: 'test edit',
+	content_model: page.content_model,
+	latest: page.latest,
+} );
+console.log( `Edited page with revision ID ${ updatedPage.latest.id }` );
+</code></pre>
+<h3><code>getHtml</code></h3>
+<p>Make a GET request that will return HTML.
+The HTML is returned as a <code>String</code>;
+if you want to turn it into a DOM, you will need to parse it yourself,
+e.g. using a <a href="https://developer.mozilla.org/en-US/docs/Web/API/DOMParser"><code>DOMParser</code></a> in the browser or <a href="https://www.npmjs.com/package/jsdom">jsdom</a> on Node.js.</p>
+<pre class="prettyprint source lang-js"><code>const title = 'Douglas Adams';
+const html = await getHtml( session, path`/v1/page/${ title }/html` );
+const dom = new DOMParser().parseFromString( html, 'text/html' );
+const rudimentaryLeadParagraph = dom.querySelector( 'p:not( .mw-empty-elt )' );
+</code></pre>
+<h3><code>postForText</code>, <code>postForHtml</code></h3>
+<p>Make GET requests that will return text or HTML, respectively.
+As with <code>getHtml</code>, the result is returned as a <code>String</code>.
+You can use these functions to convert between wikitext and HTML, for instance.</p>
+<pre class="prettyprint source lang-js"><code>const wikitext = &quot;''Hello, world!''&quot;;
+const html = await postForHtml( session, '/v1/transform/wikitext/to/html', {
+	wikitext,
+} );
+console.log( html.valueOf() );
+// &lt;!DOCTYPE html>...&lt;i ...>Hello, world!&lt;/i>
+const wikitext2 = await postForText( session, '/v1/transform/html/to/wikitext', {
+	html,
+} );
+console.log( wikitext2.valueOf() );
+// ''Hello, world!''
+</code></pre>
+<h2>Request functions</h2>
+<p>m3api-rest supports the following:</p>
+<ul>
+<li>request methods:
+<ul>
+<li>GET</li>
+<li>POST</li>
+<li>PUT</li>
+<li>DELETE</li>
+<li>PATCH</li>
+</ul>
+</li>
+<li>request body content types:
+<ul>
+<li><code>application/json</code></li>
+<li><code>application/x-www-form-urlencoded</code></li>
+<li><code>multipart/form-data</code></li>
+</ul>
+</li>
+<li>response body content types:
+<ul>
+<li><code>application/json</code></li>
+<li><code>text/plain</code></li>
+<li><code>text/html</code></li>
+</ul>
+</li>
+</ul>
+<h3>Request methods and response body content types</h3>
+<p>Each combination of request method and response body content type has a separate function,
+whose name begins with the HTTP method name (in lowercase).
+For GET functions, this is directly followed by the response type (e.g. <code>getJson</code>),
+while other functions have the word “for” in between (e.g. <code>postForJson</code>)
+to clarify that this is the response body content type, not the request body content type.
+The response body content types are “json”, “text”, or “html”,
+and included in the method name with an initial uppercase letter
+(e.g. <code>getJson</code>, <code>postForText</code>, <code>postForHtml</code>).
+Overall, the following functions are available:</p>
+<ul>
+<li><code>getJson</code></li>
+<li><code>getText</code></li>
+<li><code>getHtml</code></li>
+<li><code>postForJson</code></li>
+<li><code>postForText</code></li>
+<li><code>postForHtml</code></li>
+<li><code>putForJson</code></li>
+<li><code>putForText</code></li>
+<li><code>putForHtml</code></li>
+<li><code>deleteForJson</code></li>
+<li><code>deleteForText</code></li>
+<li><code>deleteForHtml</code></li>
+<li><code>patchForJson</code></li>
+<li><code>patchForText</code></li>
+<li><code>patchForHtml</code></li>
+</ul>
+<h3>Request body content types</h3>
+<p>The request body type for non-GET request functions is determined
+by the type of the object passed into the function,
+i.e. the same function (e.g. <code>postForJson</code>) can send request bodies encoded in different ways.
+For details, see the section on “body parameters” below.</p>
+<h3>Specifying parameters</h3>
+<p>REST API endpoints have different kinds of parameters.
+Many endpoints take parameters in the path, written like <code>/v1/page/{title}</code> (<code>title</code> is a parameter);
+many endpoints take query parameters after the path, like <code>/v1/search/page?q=search</code> (<code>q</code> is a parameter);
+and non-GET endpoints (POST etc.) take body parameters in several encodings.
+m3api-rest supports several ways to specify these parameters.</p>
+<h4>Path parameters</h4>
+<p>Path parameters can be specified using a tagged template literal (string template)
+using the <code>path</code> function,
+which will encode the parameter value if necessary.</p>
+<pre class="prettyprint source lang-js"><code>import { path } from 'm3api-rest';
+
+const title = 'AC/DC';
+const url = path`/v1/page/${ title }`; // /v1/page/AC%2FDC
+</code></pre>
+<p>To use it, take the endpoint URL and change <code>{parameters}</code> to <code>${substitutions}</code>
+(or <code>${ substitutions }</code> with spaces, depending on your code style).</p>
+<p>Alternatively, you can pass the original endpoint URL into the request function unmodified,
+and the request function will pull the parameters out of the params passed into it.
+For example:</p>
+<pre class="prettyprint source lang-js"><code>const page = await getJson( session, '/v1/page/{title}', {
+	// this object contains the params for the request
+	title: 'AC/DC', // this is a path parameter
+	redirect: true, // this is a query parameter, see below
+} );
+// makes a request to /v1/page/AC%2FDC?redirect=true
+</code></pre>
+<h4>Query parameters</h4>
+<p>The GET request functions, e.g. <code>getJson</code>, take an object with query parameters after the path:</p>
+<pre class="prettyprint source lang-js"><code>const searchResults = await getJson( session, '/v1/search/page', {
+	q: 'search query',
+	limit: 10,
+} );
+// makes a request to /v1/search/page?q=search%20query&limit=10
+</code></pre>
+<p>As mentioned above, you can also specify path parameters here.</p>
+<p>Request functions for other methods don’t take an object with query parameters,
+since they already take a request body.
+Instead, if the endpoint still takes query parameters (which is uncommon, but possible),
+you should pass them into the <code>path</code> as an object:</p>
+<pre class="prettyprint source lang-js"><code>const params = { fakeQueryParam: 'abc' };
+await postForJson( path`/v0/fake/endpoint?${ params }`, {
+	fakeBodyParam: 'xyz',
+} );
+// makes a request to /v0/fake/endpoint?fakeQueryParam=abc with {&quot;fakeBodyParam&quot;:&quot;xyz&quot;} in the body
+</code></pre>
+<p>This is also possible for GET requests, but you should probably prefer passing the query parameters separately there.</p>
+<h4>Body parameters</h4>
+<p>The non-GET request functions, e.g. <code>postForJson</code>, take a value for the request body after the path.
+The type of the value encodes the content type with which the request body will be sent:
+a plain object is sent as <code>application/json</code>;
+a <code>URLSearchParams</code> instance is sent as <code>application/x-www-form-urlencoded</code>;
+and a <code>FormData</code> instance is sent as <code>multipart/form-data</code>.</p>
+<pre class="prettyprint source lang-js"><code>const wikitext = &quot;''Hello, world!''&quot;;
+
+// send as application/json
+const html = await postForHtml(
+	session,
+	'/v1/transform/wikitext/to/html',
+	{
+		wikitext,
+	},
+);
+
+// send as application/x-www-form-urlencoded
+const html = await postForHtml(
+	session,
+	'/v1/transform/wikitext/to/html',
+	new URLSearchParams( {
+		wikitext,
+	} ),
+);
+
+// send as multipart/form-data
+const formData = new FormData();
+formData.set( 'wikitext', wikitext );
+const html = await postForHtml(
+	session,
+	'/v1/transform/wikitext/to/html',
+	formData,
+);
+</code></pre>
+<p>Note that not all REST API endpoints accept all request body content types.
+Generally speaking, JSON is your safest bet,
+but you should consult the API endpoint’s documentation to see what request bodies it accepts.</p>
+<p>As mentioned above, you can also specify path parameters here.</p>
+<h2>License</h2>
+<p>Published under the <a href="https://spdx.org/licenses/ISC.html">ISC License</a>.
+By contributing to this software,
+you agree to publish your contribution under the same license.</p></article>
+    </section>
+
+
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="IncompatibleResponseType.html">IncompatibleResponseType</a></li><li><a href="InvalidPathParams.html">InvalidPathParams</a></li><li><a href="InvalidResponseBody.html">InvalidResponseBody</a></li><li><a href="RestApiClientError.html">RestApiClientError</a></li><li><a href="RestApiServerError.html">RestApiServerError</a></li><li><a href="UnexpectedResponseStatus.html">UnexpectedResponseStatus</a></li><li><a href="UnknownResponseError.html">UnknownResponseError</a></li></ul><h3>Global</h3><ul><li><a href="global.html#deleteForHtml">deleteForHtml</a></li><li><a href="global.html#deleteForJson">deleteForJson</a></li><li><a href="global.html#deleteForText">deleteForText</a></li><li><a href="global.html#encodeBody">encodeBody</a></li><li><a href="global.html#getHtml">getHtml</a></li><li><a href="global.html#getJson">getJson</a></li><li><a href="global.html#getResponseStatus">getResponseStatus</a></li><li><a href="global.html#getText">getText</a></li><li><a href="global.html#patchForHtml">patchForHtml</a></li><li><a href="global.html#patchForJson">patchForJson</a></li><li><a href="global.html#patchForText">patchForText</a></li><li><a href="global.html#path">path</a></li><li><a href="global.html#postForHtml">postForHtml</a></li><li><a href="global.html#postForJson">postForJson</a></li><li><a href="global.html#postForText">postForText</a></li><li><a href="global.html#putForHtml">putForHtml</a></li><li><a href="global.html#putForJson">putForJson</a></li><li><a href="global.html#putForText">putForText</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a>
+</footer>
+
+<script>document.addEventListener('DOMContentLoaded', function () { prettyPrint(); });</script>
+<script async src="scripts/linenumber.js"></script>
+</body>
+</html>
