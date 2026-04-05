@@ -5,7 +5,7 @@ This file records the changes in each m3api-rest release.
 The annotated tag (and GitLab release) for each version also lists the changes,
 but this file may sometimes contain later improvements (e.g. typo fixes).
 
-## next (not yet released)
+## v0.1.1 (2026-04-05)
 
 - Updated the library for the new network interface of m3api v1.1.0,
   so that it can be used together with that version.
