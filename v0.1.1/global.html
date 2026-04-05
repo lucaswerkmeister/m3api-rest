@@ -15,7 +15,7 @@
 
 <div id="main">
 
-    <p class="version-warning"><strong>Warning:</strong> This is an old version. The latest stable version is <a href="../v0.1.1/global.html">v0.1.1</a>.</p>
+    <!-- VERSION-WARNING -->
 
     <h1 class="page-title">Global</h1>
 
@@ -315,7 +315,7 @@ This may include both parameters for the path and query parameters.</p></td>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line424">line 424</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line499">line 499</a>
     </li></ul></dd>
     
 
@@ -482,7 +482,7 @@ This may include both parameters for the path and query parameters.</p></td>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line277">line 277</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line359">line 359</a>
     </li></ul></dd>
     
 
@@ -511,7 +511,7 @@ This may include both parameters for the path and query parameters.</p></td>
 
         
 <div class="param-desc">
-    <p>The HTTP status code, i.e. an integer between 100 and 599.
+    <p>The HTTP status code, i.e. an integer between 200 and 599.
 (And for a successful response, really only between 200 and 299.)</p>
 </div>
 
@@ -689,7 +689,7 @@ so you can ignore the parameters documented below.)</p>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line337">line 337</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line427">line 427</a>
     </li></ul></dd>
     
 
@@ -844,7 +844,7 @@ so you can ignore the parameters documented below.)</p>
 
             
 
-            <td class="description last"><p>The resourcee path, e.g. <code>/v1/page</code>.
+            <td class="description last"><p>The resource path, e.g. <code>/v1/page</code>.
 Does not include the domain, script path, or <code>rest.php</code> endpoint.
 Use the <a href="global.html#path">path</a> tag function to build the path.</p></td>
         </tr>
@@ -955,7 +955,7 @@ You may also include parameters for the path here.</p></td>
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line453">line 453</a>
+        <a href="index.js.html">index.js</a>, <a href="index.js.html#line533">line 533</a>
     </li></ul></dd>
     
 
@@ -1011,347 +1011,6 @@ You may also include parameters for the path here.</p></td>
 
 
         
-            
-
-    
-
-    
-    <h4 class="name" id="splitUrlForInternalInterface"><span class="type-signature"></span>splitUrlForInternalInterface<span class="signature">(url)</span><span class="type-signature"> &rarr; {Object}</span></h4>
-    
-
-    
-
-
-
-<div class="description">
-    <p>Split a given URL for the m3api internal interface.</p>
-</div>
-
-
-
-
-
-
-
-
-
-    <h5>Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>url</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"></td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line402">line 402</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5>Returns:</h5>
-
-        
-
-
-<dl>
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type">Object</span>
-
-
-    </dd>
-</dl>
-
-    
-
-
-
-
-
-        
-            
-
-    
-
-    
-    <h4 class="name" id="substitutePathParams"><span class="type-signature"></span>substitutePathParams<span class="signature">(path, params)</span><span class="type-signature"> &rarr; {Object}</span></h4>
-    
-
-    
-
-
-
-<div class="description">
-    <p>Substitute template expressions in the path,
-taking values from the given params.</p>
-</div>
-
-
-
-
-
-
-
-
-
-    <h5>Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>path</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"><p>The path with optional <code>{param}</code> expressions.</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>params</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-|
-
-<span class="param-type">URLSearchParams</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"><p>The input params. Not modified.</p></td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line354">line 354</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5>Returns:</h5>
-
-        
-<div class="param-desc">
-    <p>The potentially modified path and params.</p>
-</div>
-
-
-
-<dl>
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type">Object</span>
-
-
-    </dd>
-</dl>
-
-    
-
-
-
-
-
-        
     
 
     
@@ -1367,7 +1026,7 @@ taking values from the given params.</p>
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="InvalidPathParams.html">InvalidPathParams</a></li><li><a href="InvalidResponseBody.html">InvalidResponseBody</a></li><li><a href="RestApiClientError.html">RestApiClientError</a></li><li><a href="RestApiServerError.html">RestApiServerError</a></li><li><a href="UnexpectedResponseStatus.html">UnexpectedResponseStatus</a></li><li><a href="UnknownResponseError.html">UnknownResponseError</a></li></ul><h3>Global</h3><ul><li><a href="global.html#getJson">getJson</a></li><li><a href="global.html#getResponseStatus">getResponseStatus</a></li><li><a href="global.html#path">path</a></li><li><a href="global.html#postForJson">postForJson</a></li><li><a href="global.html#splitUrlForInternalInterface">splitUrlForInternalInterface</a></li><li><a href="global.html#substitutePathParams">substitutePathParams</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="IncompatibleResponseType.html">IncompatibleResponseType</a></li><li><a href="InvalidPathParams.html">InvalidPathParams</a></li><li><a href="InvalidResponseBody.html">InvalidResponseBody</a></li><li><a href="RestApiClientError.html">RestApiClientError</a></li><li><a href="RestApiServerError.html">RestApiServerError</a></li><li><a href="UnexpectedResponseStatus.html">UnexpectedResponseStatus</a></li><li><a href="UnknownResponseError.html">UnknownResponseError</a></li></ul><h3>Global</h3><ul><li><a href="global.html#getJson">getJson</a></li><li><a href="global.html#getResponseStatus">getResponseStatus</a></li><li><a href="global.html#path">path</a></li><li><a href="global.html#postForJson">postForJson</a></li></ul>
 </nav>
 
 <br class="clear">
