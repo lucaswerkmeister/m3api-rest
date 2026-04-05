@@ -347,6 +347,7 @@ export function path( strings, ...values ) {
  * Substitute template expressions in the path,
  * taking values from the given params.
  *
+ * @private
  * @param {string} path The path with optional `{param}` expressions.
  * @param {Object|URLSearchParams} params The input params. Not modified.
  * @return {Object} The potentially modified path and params.
@@ -396,6 +397,7 @@ function substitutePathParams( path, params ) {
 /**
  * Split a given URL for the m3api internal interface.
  *
+ * @private
  * @param {string} url
  * @return {Object}
  */
