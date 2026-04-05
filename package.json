@@ -1,6 +1,6 @@
 {
 	"name": "m3api-rest",
-	"version": "0.1.1",
+	"version": "0.2.0",
 	"description": "m3api extension package to interact with the MediaWiki REST API.",
 	"main": "index.js",
 	"type": "module",
